@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// userId = auth.users.id from Supabase Auth. Prisma bypasses RLS, so every query must filter by userId.
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @db.Uuid
+  mode      Mode
+  tone      Tone
+  input     String
+  output    Json
+  model     String
+  latencyMs Int?
+  createdAt DateTime @default(now())
+  edits     Edit[]
+
+  @@index([userId, createdAt])
+}
+
+model Edit {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId      String   @db.Uuid
+  original    String
+  replacement String
+  type        EditType
+  explanation String
+
+  @@index([userId, type])
+}
+
+model VocabItem {
+  id         String    @id @default(cuid())
+  userId     String    @db.Uuid
+  phrase     String
+  context    String?
+  meaning    String?
+  notes      Json?
+  // FSRS state
+  due        DateTime  @default(now())
+  stability  Float     @default(0)
+  difficulty Float     @default(0)
+  reps       Int       @default(0)
+  lapses     Int       @default(0)
+  state      Int       @default(0)
+  lastReview DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, phrase])
+  @@index([userId, due])
+}
+
+model PhraseLookup {
+  key       String   @id // hash(action, phrase, context)
+  action    String
+  phrase    String
+  result    Json
+  createdAt DateTime @default(now())
+}
+
+enum Mode {
+  FIX
+  KEYWORDS
+  DESCRIBE
+  REPLY
+  TRY_FIRST
+}
+
+enum Tone {
+  CASUAL
+  NEUTRAL
+  POLITE
+}
+
+enum EditType {
+  SPELLING
+  GRAMMAR
+  WORD_CHOICE
+  NATURALNESS
+}
