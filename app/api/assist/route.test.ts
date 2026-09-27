@@ -2,31 +2,22 @@
 import type * as Ai from 'ai'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { FixResult } from '@/lib/assist/schema'
+import type { FixResult, SuggestResult } from '@/lib/assist/schema'
 
-const {
-  findFirst,
-  findMany,
-  create,
-  update,
-  deleteMany,
-  streamText,
-  afterCallbacks,
-} = vi.hoisted(() => ({
-  findFirst: vi.fn(),
-  findMany: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  deleteMany: vi.fn(),
-  streamText: vi.fn(),
-  afterCallbacks: [] as (() => unknown)[],
-}))
+const { findFirst, upsert, deleteMany, streamText, afterCallbacks } =
+  vi.hoisted(() => ({
+    findFirst: vi.fn(),
+    upsert: vi.fn(),
+    deleteMany: vi.fn(),
+    streamText: vi.fn(),
+    afterCallbacks: [] as (() => unknown)[],
+  }))
 
 vi.mock('@/lib/auth', () => ({
   getCurrentUser: async () => ({ id: 'user-1', email: 'me@example.com' }),
 }))
 vi.mock('@/lib/db', () => {
-  const session = { findFirst, findMany, create, update, deleteMany }
+  const session = { findFirst, upsert, deleteMany }
   return {
     db: {
       session,
@@ -57,6 +48,11 @@ const FIX_RESULT: FixResult = {
   ],
 }
 
+const SUGGEST_RESULT: SuggestResult = {
+  suggestions: ['The server was lagging like crazy yesterday.'],
+  vocab: [{ phrase: 'like crazy', meaning: 'Rất nhiều, dữ dội.' }],
+}
+
 function post(body: unknown) {
   return POST(
     new Request('http://localhost/api/assist', {
@@ -72,20 +68,19 @@ async function runAfter() {
 
 beforeEach(() => {
   findFirst.mockReset().mockResolvedValue(null)
-  findMany.mockReset().mockResolvedValue([])
-  create.mockReset().mockResolvedValue({})
-  update.mockReset().mockResolvedValue({})
+  upsert.mockReset().mockResolvedValue({})
   deleteMany.mockReset().mockResolvedValue({})
   afterCallbacks.length = 0
   streamText.mockReset().mockReturnValue({
     output: Promise.resolve(FIX_RESULT),
-    toTextStreamResponse: () => new Response(JSON.stringify(FIX_RESULT)),
+    toTextStreamResponse: (init?: ResponseInit) =>
+      new Response(JSON.stringify(FIX_RESULT), init),
   })
 })
 
 describe('POST /api/assist', () => {
   it('returns a cached output without calling the model', async () => {
-    findFirst.mockResolvedValue({ output: FIX_RESULT })
+    findFirst.mockResolvedValue({ id: 'old', output: FIX_RESULT })
 
     const res = await post({
       mode: 'fix',
@@ -98,62 +93,52 @@ describe('POST /api/assist', () => {
     expect(streamText).not.toHaveBeenCalled()
   })
 
-  it('skips the cache and saves a new answer when fresh is set', async () => {
-    findFirst.mockResolvedValue({ output: FIX_RESULT })
+  it('returns the cached session id with a cache hit', async () => {
+    findFirst.mockResolvedValue({ id: 'old', output: FIX_RESULT })
 
-    await post({ mode: 'fix', input: 'hello', tone: 'casual', fresh: true })
-    await runAfter()
+    const res = await post({ mode: 'fix', input: 'hello', tone: 'casual' })
 
-    expect(findFirst).not.toHaveBeenCalled()
-    expect(streamText).toHaveBeenCalledOnce()
-    expect(create).toHaveBeenCalledOnce()
+    expect(res.headers.get('x-assist-session')).toBe('old')
   })
 
-  it('overwrites the existing session and its edits on regenerate', async () => {
-    findMany.mockResolvedValue([{ id: 'old' }])
+  it('skips the cache and overwrites the latest session when fresh is set', async () => {
+    findFirst.mockResolvedValue({ id: 'old', output: FIX_RESULT })
 
-    await post({ mode: 'fix', input: 'hello', tone: 'casual', fresh: true })
+    const res = await post({
+      mode: 'fix',
+      input: 'hello',
+      tone: 'casual',
+      fresh: true,
+    })
     await runAfter()
 
-    expect(create).not.toHaveBeenCalled()
-    const { where, data } = update.mock.calls[0][0]
+    expect(streamText).toHaveBeenCalledOnce()
+    expect(res.headers.get('x-assist-session')).toBe('old')
+    const { where, update } = upsert.mock.calls[0][0]
     expect(where).toEqual({ id: 'old' })
-    expect(data).toMatchObject({
+    expect(update).toMatchObject({
       output: FIX_RESULT,
       edits: {
         deleteMany: {},
         create: [expect.objectContaining({ type: 'WORD_CHOICE' })],
       },
     })
-    expect(deleteMany).not.toHaveBeenCalled()
   })
 
-  it('removes older duplicates of the same request when saving', async () => {
-    findMany.mockResolvedValue([
-      { id: 'newest' },
-      { id: 'dup1' },
-      { id: 'dup2' },
-    ])
-
-    await post({ mode: 'fix', input: 'hello', tone: 'casual', fresh: true })
-    await runAfter()
-
-    expect(update.mock.calls[0][0].where).toEqual({ id: 'newest' })
-    expect(deleteMany).toHaveBeenCalledWith({
-      where: { id: { in: ['dup1', 'dup2'] } },
-    })
-  })
-
-  it('saves the session and its edits once the stream finishes', async () => {
-    await post({
+  it('saves a new request under the id it sent to the client', async () => {
+    const res = await post({
       mode: 'fix',
       input: 'I goes to school every day.',
       tone: 'casual',
     })
     await runAfter()
 
-    const { data } = create.mock.calls[0][0]
-    expect(data).toMatchObject({
+    const id = res.headers.get('x-assist-session')
+    expect(id).toBeTruthy()
+    const { where, create } = upsert.mock.calls[0][0]
+    expect(where).toEqual({ id })
+    expect(create).toMatchObject({
+      id,
       userId: 'user-1',
       mode: 'FIX',
       tone: 'CASUAL',
@@ -174,6 +159,19 @@ describe('POST /api/assist', () => {
     })
   })
 
+  it('removes other sessions with the same key when saving', async () => {
+    const res = await post({ mode: 'fix', input: 'hello', tone: 'casual' })
+    await runAfter()
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        cacheKey: findFirst.mock.calls[0][0].where.cacheKey,
+        id: { not: res.headers.get('x-assist-session') },
+      },
+    })
+  })
+
   it('does not save when the stream ends without a complete output', async () => {
     streamText.mockReturnValue({
       output: Promise.reject(new Error('No output generated')),
@@ -184,7 +182,7 @@ describe('POST /api/assist', () => {
     await post({ mode: 'fix', input: 'hello', tone: 'casual' })
     await runAfter()
 
-    expect(create).not.toHaveBeenCalled()
+    expect(upsert).not.toHaveBeenCalled()
   })
 
   it('looks up the same key regardless of extra whitespace', async () => {
@@ -205,7 +203,10 @@ describe('POST /api/assist', () => {
   })
 
   it('treats a stored output that no longer fits the schema as a miss', async () => {
-    findFirst.mockResolvedValue({ output: { corrected: 'old shape' } })
+    findFirst.mockResolvedValue({
+      id: 'old',
+      output: { corrected: 'old shape' },
+    })
 
     await post({ mode: 'fix', input: 'hello', tone: 'casual' })
 
@@ -220,5 +221,55 @@ describe('POST /api/assist', () => {
 
     expect(res.ok).toBe(true)
     expect(streamText).toHaveBeenCalledOnce()
+  })
+
+  describe('suggest mode', () => {
+    beforeEach(() => {
+      streamText.mockReturnValue({
+        output: Promise.resolve(SUGGEST_RESULT),
+        toTextStreamResponse: (init?: ResponseInit) =>
+          new Response(JSON.stringify(SUGGEST_RESULT), init),
+      })
+    })
+
+    it('asks the model with the suggest prompt', async () => {
+      await post({
+        mode: 'suggest',
+        input: 'server lag hôm qua',
+        tone: 'casual',
+      })
+
+      const { instructions, prompt } = streamText.mock.calls[0][0]
+      expect(instructions).toContain('what they want to say')
+      expect(prompt).toBe('server lag hôm qua')
+    })
+
+    it('saves the session as SUGGEST without edits', async () => {
+      await post({ mode: 'suggest', input: 'server lag', tone: 'casual' })
+      await runAfter()
+
+      expect(upsert.mock.calls[0][0].create).toMatchObject({
+        mode: 'SUGGEST',
+        output: SUGGEST_RESULT,
+        edits: { create: [] },
+      })
+    })
+
+    it('returns a cached suggest output', async () => {
+      findFirst.mockResolvedValue({ id: 'old', output: SUGGEST_RESULT })
+
+      const res = await post({ mode: 'suggest', input: 'lag', tone: 'casual' })
+
+      expect(await res.json()).toEqual(SUGGEST_RESULT)
+      expect(streamText).not.toHaveBeenCalled()
+    })
+
+    it('uses a different key than fix for the same input', async () => {
+      await post({ mode: 'fix', input: 'server lag', tone: 'casual' })
+      await post({ mode: 'suggest', input: 'server lag', tone: 'casual' })
+
+      const [a, b] = findFirst.mock.calls.map((c) => c[0].where.cacheKey)
+      expect(a).not.toBe(b)
+    })
   })
 })

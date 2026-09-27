@@ -1,6 +1,7 @@
 'use client'
 
 import { useObject } from '@ai-sdk/react'
+import type { DeepPartial } from 'ai'
 import { cn } from 'cn'
 import { ArrowUp, Check, Languages, RotateCw, Square } from 'lucide-react'
 import {
@@ -18,11 +19,17 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { buildSegments } from '@/lib/assist/highlight'
 import {
   type AssistRequest,
+  type AssistResult,
+  assistResultSchema,
   type FixEdit,
   type FixResult,
-  fixResultSchema,
+  type Mode,
+  MODE_LABELS,
+  MODES,
+  type SuggestResult,
   TONES,
   type Tone,
+  type VocabNote,
 } from '@/lib/assist/schema'
 
 import {
@@ -30,10 +37,12 @@ import {
   CorrectedSkeleton,
   EditList,
   Highlighted,
+  Phrased,
   SectionLabel,
   StreamCaret,
+  VocabList,
 } from './assist-output'
-import { type ModeId, ModeTabs } from './mode-tabs'
+import { ModeTabs } from './mode-tabs'
 
 const MAX_INPUT = 1000
 
@@ -45,50 +54,73 @@ const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
   (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
 
-// Tone survives reloads via localStorage; falls back to memory if storage is blocked
-const TONE_KEY = 'assist.tone'
-const toneListeners = new Set<() => void>()
-let savedTone: Tone | undefined
-const toneStore = {
-  subscribe(listener: () => void) {
-    toneListeners.add(listener)
-    return () => toneListeners.delete(listener)
-  },
-  get(): Tone {
-    if (!savedTone) {
+// Tone and mode survive reloads via localStorage; fall back to memory if storage is blocked
+function storedChoice<T extends string>(
+  key: string,
+  values: readonly T[],
+  fallback: T,
+) {
+  const listeners = new Set<() => void>()
+  let saved: T | undefined
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    get(): T {
       try {
-        const v = localStorage.getItem(TONE_KEY) as Tone
-        savedTone = TONES.includes(v) ? v : 'casual'
+        const v = localStorage.getItem(key) as T
+        if (values.includes(v)) return v
+      } catch {}
+      return saved ?? fallback
+    },
+    getServer: () => fallback,
+    set(value: T) {
+      try {
+        localStorage.setItem(key, value)
       } catch {
-        savedTone = 'casual'
+        saved = value
       }
-    }
-    return savedTone
+      listeners.forEach((l) => l())
+    },
+  }
+}
+const toneStore = storedChoice<Tone>('assist.tone', TONES, 'casual')
+const modeStore = storedChoice<Mode>('assist.mode', MODES, 'fix')
+
+const MODE_COPY: Record<Mode, { inputLabel: string; placeholder: string }> = {
+  fix: {
+    inputLabel: 'Sentence to fix',
+    placeholder: 'Type what you want to say…',
   },
-  set(tone: Tone) {
-    savedTone = tone
-    try {
-      localStorage.setItem(TONE_KEY, tone)
-    } catch {}
-    toneListeners.forEach((l) => l())
+  suggest: {
+    inputLabel: 'What you want to say',
+    placeholder: 'Describe it in Vietnamese, or type a few English words…',
   },
 }
-const serverTone = (): Tone => 'casual'
 
 export type AssistSession = {
   input: string
   tone: Tone
-  output: FixResult
   createdAt: Date
-}
+} & (
+  | { mode: 'fix'; output: FixResult }
+  | { mode: 'suggest'; output: SuggestResult }
+)
 
 export function Assist({ session }: { session?: AssistSession | null }) {
   const [input, setInput] = useState(session?.input ?? '')
-  const [mode, setMode] = useState<ModeId>('fix')
+  const preferredMode = useSyncExternalStore(
+    modeStore.subscribe,
+    modeStore.get,
+    modeStore.getServer,
+  )
+  const [sessionMode, setSessionMode] = useState(session?.mode)
+  const mode = sessionMode ?? preferredMode
   const preferredTone = useSyncExternalStore(
     toneStore.subscribe,
     toneStore.get,
-    serverTone,
+    toneStore.getServer,
   )
   const [sessionTone, setSessionTone] = useState(session?.tone)
   const tone = sessionTone ?? preferredTone
@@ -101,11 +133,14 @@ export function Assist({ session }: { session?: AssistSession | null }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isMac = useSyncExternalStore(noopSubscribe, isMacClient, isMacServer)
 
+  const responseSession = useRef<string | null>(null)
+
   // Records time to the first streamed byte, the latency that matters mid-conversation
   async function timedFetch(url: RequestInfo | URL, init?: RequestInit) {
     const start = performance.now()
     const res = await fetch(url, init)
     setCached(res.headers.get('x-assist-cache') === 'hit')
+    responseSession.current = res.headers.get('x-assist-session')
     if (!res.body) return res
     let seen = false
     const body = res.body.pipeThrough(
@@ -122,38 +157,86 @@ export function Assist({ session }: { session?: AssistSession | null }) {
     return new Response(body, res)
   }
 
-  const { object, submit, isLoading, stop, error } = useObject<
-    typeof fixResultSchema,
-    FixResult,
+  const { object, submit, isLoading, stop, clear, error } = useObject<
+    typeof assistResultSchema,
+    AssistResult,
     AssistRequest
   >({
     api: '/api/assist',
-    schema: fixResultSchema,
+    schema: assistResultSchema,
     fetch: timedFetch,
+    // The server saves a finished answer under this id, so a reload or a shared link reopens it
+    onFinish({ object: finished }) {
+      if (finished && responseSession.current) {
+        window.history.replaceState(
+          null,
+          '',
+          `/?session=${encodeURIComponent(responseSession.current)}`,
+        )
+      }
+    },
     initialValue: session?.output,
   })
 
-  const corrected = object?.corrected ?? ''
-  const options = [corrected, ...(object?.alternatives ?? [])].filter(
+  // Switching modes clears the object, so it always has the current mode's shape
+  const fix =
+    mode === 'fix' ? (object as DeepPartial<FixResult> | undefined) : undefined
+  const suggest =
+    mode === 'suggest'
+      ? (object as DeepPartial<SuggestResult> | undefined)
+      : undefined
+
+  const corrected = fix?.corrected ?? ''
+  const edits = (fix?.edits ?? []).filter(isCompleteEdit)
+  const suggestions = (suggest?.suggestions ?? []).filter(
     (s): s is string => !!s,
   )
-  const edits = (object?.edits ?? []).filter(isCompleteEdit)
-  const done = !isLoading && !!corrected
+  const vocab = (suggest?.vocab ?? []).filter(isCompleteVocab)
+  // What 1/2/3 copy
+  const options =
+    mode === 'fix'
+      ? [corrected, ...(fix?.alternatives ?? [])].filter(
+          (s): s is string => !!s,
+        )
+      : suggestions
+  const done = !isLoading && options.length > 0
   // No edits means a rewrite (e.g. Vietnamese input), where a diff is just noise
   const segments =
     done && edits.length > 0 ? buildSegments(submitted, corrected, edits) : null
 
-  function run(text: string, fresh: boolean) {
-    // A new answer is no longer the opened session; drop ?session= so a reload starts fresh
-    if (savedAt) {
-      setSavedAt(undefined)
+  // The shown result is no longer the linked session; drop ?session= until the next one is saved
+  function resetResult() {
+    setSavedAt(undefined)
+    responseSession.current = null
+    if (new URLSearchParams(window.location.search).has('session')) {
       window.history.replaceState(null, '', '/')
     }
-    setSubmitted(text)
     setFirstByteMs(null)
     setCached(false)
     setCopied(null)
-    submit({ mode: 'fix', input: text, tone, ...(fresh && { fresh }) })
+  }
+
+  function run(text: string, fresh: boolean) {
+    resetResult()
+    setSubmitted(text)
+    submit({ mode, input: text, tone, ...(fresh && { fresh }) })
+  }
+
+  // Keeps the typed input but drops the other mode's result
+  function changeMode(next: Mode) {
+    if (next === mode) return
+    stop()
+    clear()
+    resetResult()
+    setSubmitted('')
+    setSessionMode(undefined)
+    modeStore.set(next)
+    inputRef.current?.focus()
+  }
+
+  function cycleMode(step: 1 | -1) {
+    const i = MODES.indexOf(mode)
+    changeMode(MODES[(i + step + MODES.length) % MODES.length])
   }
 
   function send() {
@@ -204,6 +287,13 @@ export function Assist({ session }: { session?: AssistSession | null }) {
       return
     }
 
+    // Only with nothing focused, so Tab still moves between buttons and fields
+    if (e.key === 'Tab' && !e.altKey && e.target === document.body) {
+      e.preventDefault()
+      cycleMode(e.shiftKey ? -1 : 1)
+      return
+    }
+
     if (e.key === '/' && !isTyping(e.target)) {
       e.preventDefault()
       inputRef.current?.focus()
@@ -221,14 +311,46 @@ export function Assist({ session }: { session?: AssistSession | null }) {
 
   const mod = isMac ? '⌘' : 'Ctrl'
   const alt = isMac ? '⌥' : 'Alt+'
-  const alternatives = options.slice(1)
+  const copyText = MODE_COPY[mode]
+  const alternatives = mode === 'fix' ? options.slice(1) : []
   const unchanged = done && edits.length === 0 && corrected === submitted
   const rewritten = done && edits.length === 0 && corrected !== submitted
+
+  const meta = (
+    <span className="ml-auto flex items-center gap-2 font-normal tracking-normal normal-case">
+      {savedAt && (
+        <time dateTime={savedAt.toISOString()} suppressHydrationWarning>
+          Saved{' '}
+          {savedAt.toLocaleString(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })}
+        </time>
+      )}
+      {firstByteMs !== null && (
+        <span className="tabular-nums">
+          {cached && 'cached · '}
+          {firstByteMs} ms
+        </span>
+      )}
+      {done && (
+        <button
+          type="button"
+          onClick={regenerate}
+          aria-label="Regenerate"
+          title="Regenerate (R)"
+          className="hover:bg-muted hover:text-foreground -my-1 rounded-md p-1"
+        >
+          <RotateCw className="size-3.5" />
+        </button>
+      )}
+    </span>
+  )
 
   return (
     <div className="flex flex-col gap-6">
       <div className="-mb-3">
-        <ModeTabs value={mode} onChange={setMode} />
+        <ModeTabs value={mode} onChange={changeMode} />
       </div>
       <form
         className="bg-card focus-within:border-ring focus-within:ring-ring/30 rounded-xl border shadow-xs transition-[color,box-shadow] focus-within:ring-3"
@@ -249,8 +371,8 @@ export function Assist({ session }: { session?: AssistSession | null }) {
               e.currentTarget.blur()
             }
           }}
-          placeholder="Type what you want to say…"
-          aria-label="Sentence to fix"
+          placeholder={copyText.placeholder}
+          aria-label={copyText.inputLabel}
           className="max-h-60 min-h-24 resize-none border-0 bg-transparent px-4 pt-3 text-base shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent"
           maxLength={MAX_INPUT}
         />
@@ -290,7 +412,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
               </Button>
             ) : (
               <Button type="submit" disabled={!input.trim()}>
-                <ArrowUp /> Fix
+                <ArrowUp /> {MODE_LABELS[mode]}
                 <Kbd className="bg-primary-foreground/15 text-primary-foreground">
                   {mod}↵
                 </Kbd>
@@ -302,7 +424,10 @@ export function Assist({ session }: { session?: AssistSession | null }) {
 
       <div className="text-muted-foreground -mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs">
         <span className="flex items-center gap-1.5">
-          <Kbd>{mod}↵</Kbd> Fix
+          <Kbd>{mod}↵</Kbd> {MODE_LABELS[mode]}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Kbd>Tab</Kbd> Mode
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>1</Kbd>–<Kbd>3</Kbd> Copy
@@ -328,9 +453,9 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </p>
       )}
 
-      {isLoading && !corrected && <CorrectedSkeleton />}
+      {isLoading && options.length === 0 && <CorrectedSkeleton />}
 
-      {corrected && (
+      {mode === 'fix' && corrected && (
         <section className="flex flex-col gap-5" aria-live="polite">
           <div className="flex flex-col gap-2">
             <SectionLabel>
@@ -345,37 +470,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
                   <Languages className="size-3.5" /> Rewritten in English
                 </span>
               )}
-              <span className="ml-auto flex items-center gap-2 font-normal tracking-normal normal-case">
-                {savedAt && (
-                  <time
-                    dateTime={savedAt.toISOString()}
-                    suppressHydrationWarning
-                  >
-                    Saved{' '}
-                    {savedAt.toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
-                  </time>
-                )}
-                {firstByteMs !== null && (
-                  <span className="tabular-nums">
-                    {cached && 'cached · '}
-                    {firstByteMs} ms
-                  </span>
-                )}
-                {done && (
-                  <button
-                    type="button"
-                    onClick={regenerate}
-                    aria-label="Regenerate"
-                    title="Regenerate (R)"
-                    className="hover:bg-muted hover:text-foreground -my-1 rounded-md p-1"
-                  >
-                    <RotateCw className="size-3.5" />
-                  </button>
-                )}
-              </span>
+              {meta}
             </SectionLabel>
             <div
               className={cn(
@@ -431,8 +526,47 @@ export function Assist({ session }: { session?: AssistSession | null }) {
           )}
         </section>
       )}
+
+      {mode === 'suggest' && suggestions.length > 0 && (
+        <section className="flex flex-col gap-5" aria-live="polite">
+          <div className="flex flex-col gap-2">
+            <SectionLabel>
+              Say it like this
+              {meta}
+            </SectionLabel>
+            {suggestions.map((text, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => copy(i)}
+                className={cn(
+                  'group bg-card hover:bg-muted/50 flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors',
+                  copied === i && 'border-emerald-500/40',
+                )}
+              >
+                <span className="flex-1 text-lg leading-relaxed text-pretty">
+                  {done ? <Phrased text={text} vocab={vocab} /> : text}
+                  {isLoading && i === suggestions.length - 1 && <StreamCaret />}
+                </span>
+                <CopyHint index={i} copied={copied === i} />
+              </button>
+            ))}
+          </div>
+
+          {done && vocab.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <SectionLabel>Words &amp; phrases</SectionLabel>
+              <VocabList vocab={vocab} />
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
+}
+
+function isCompleteVocab(v: Partial<VocabNote> | undefined): v is VocabNote {
+  return typeof v?.phrase === 'string' && typeof v.meaning === 'string'
 }
 
 function isCompleteEdit(e: Partial<FixEdit> | undefined): e is FixEdit {

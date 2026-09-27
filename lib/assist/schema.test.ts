@@ -1,13 +1,26 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { assistRequestSchema, fixResultSchema } from './schema'
+import {
+  assistRequestSchema,
+  fixResultSchema,
+  suggestResultSchema,
+} from './schema'
 
 describe('assistRequestSchema', () => {
   it('accepts a valid fix request', () => {
     const result = assistRequestSchema.safeParse({
       mode: 'fix',
       input: 'I go to school yesterday',
+      tone: 'casual',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a valid suggest request', () => {
+    const result = assistRequestSchema.safeParse({
+      mode: 'suggest',
+      input: 'lag, server, yesterday',
       tone: 'casual',
     })
     expect(result.success).toBe(true)
@@ -95,6 +108,21 @@ describe('fixResultSchema', () => {
 
   it('requires corrected, alternatives and edits to be present', () => {
     const result = fixResultSchema.safeParse({ corrected: 'ok' })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('suggestResultSchema', () => {
+  it('accepts suggestions with vocab notes', () => {
+    const result = suggestResultSchema.safeParse({
+      suggestions: ['The server was lagging yesterday.'],
+      vocab: [{ phrase: 'lagging', meaning: 'Bị giật, trễ.' }],
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('requires both suggestions and vocab', () => {
+    const result = suggestResultSchema.safeParse({ suggestions: ['hi'] })
     expect(result.success).toBe(false)
   })
 })

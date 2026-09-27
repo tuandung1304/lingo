@@ -10,7 +10,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { Segment } from '@/lib/assist/highlight'
-import type { EditType, FixEdit } from '@/lib/assist/schema'
+import { markPhrases } from '@/lib/assist/phrases'
+import type { EditType, FixEdit, VocabNote } from '@/lib/assist/schema'
 
 export const EDIT_LABELS: Record<EditType, string> = {
   spelling: 'Spelling',
@@ -155,4 +156,40 @@ export function Highlighted({ segments }: { segments: Segment[] }) {
       </Tooltip>
     )
   })
+}
+
+const PHRASE_TRIGGER = (
+  <span className="cursor-help underline decoration-sky-500/60 decoration-dotted decoration-2 underline-offset-4" />
+)
+
+// A suggestion with its vocab phrases underlined; hovering one shows its meaning
+export function Phrased({ text, vocab }: { text: string; vocab: VocabNote[] }) {
+  return markPhrases(text, vocab).map((part, i) =>
+    part.note ? (
+      <Tooltip key={i}>
+        <TooltipTrigger render={PHRASE_TRIGGER}>{part.text}</TooltipTrigger>
+        <TooltipContent className="max-w-72 flex-col items-start gap-1 py-2">
+          <span className="font-medium">{part.note.phrase}</span>
+          <span className="opacity-80">{part.note.meaning}</span>
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      <span key={i}>{part.text}</span>
+    ),
+  )
+}
+
+export function VocabList({ vocab }: { vocab: VocabNote[] }) {
+  return (
+    <ul className="bg-card divide-y rounded-xl border">
+      {vocab.map((v, i) => (
+        <li key={i} className="flex flex-col gap-1 px-4 py-3 text-sm">
+          <span className="font-medium text-sky-700 dark:text-sky-300">
+            {v.phrase}
+          </span>
+          <p className="text-muted-foreground leading-relaxed">{v.meaning}</p>
+        </li>
+      ))}
+    </ul>
+  )
 }

@@ -10,24 +10,20 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 
 ## Tính năng chính
 
-### Mode (mỗi mode có system prompt và schema riêng)
+### Mode
 
-| Mode          | Input                                      | Output                                                           |
-| ------------- | ------------------------------------------ | ---------------------------------------------------------------- |
-| **Fix**       | Câu định nói                               | Câu đã sửa, highlight lỗi, giải thích, 1–2 cách nói tự nhiên hơn |
-| **Keywords**  | `lag, game, server, yesterday`             | 2–3 câu hoàn chỉnh                                               |
-| **Describe**  | Mô tả ý bằng tiếng Việt hoặc tiếng Anh bồi | 2–3 câu nói được ngay                                            |
-| **Reply**     | Câu người khác vừa nói, kèm ý muốn trả lời | 2–3 cách đáp                                                     |
-| **Try first** | Tự viết câu trước                          | Chấm điểm, sửa và lưu lại để ôn                                  |
+| Mode        | Input                                                                             | Output                                                                 |
+| ----------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Fix**     | Câu tiếng Anh định nói                                                            | Câu đã sửa, highlight lỗi, giải thích, 1–2 cách nói tự nhiên hơn       |
+| **Suggest** | Mô tả ý bằng tiếng Việt, hoặc các từ tiếng Anh rời rạc (`lag, server, yesterday`) | 2–3 câu hoàn chỉnh nói được ngay, kèm giải thích từ và cụm từ đáng học |
 
 - Toggle **tone**: casual / neutral / polite
-- Option **spoken/short**: câu ngắn, dễ nói trong voice room
 
 ### Highlight lỗi
 
 - LLM trả `{ corrected, alternatives, edits[{ original, replacement, type, explanation }] }`, **không** trả vị trí ký tự.
 - Client diff theo từng từ (`diff`/jsdiff) giữa input và `corrected` để render highlight, sau đó match `edits[].original` để gắn giải thích.
-- Chỉ áp dụng cho mode Fix và Try first. Đặt `corrected` là field đầu tiên để stream ra trước; highlight render khi output đã xong.
+- Chỉ áp dụng cho mode Fix. Đặt `corrected` là field đầu tiên để stream ra trước; highlight render khi output đã xong.
 
 ### Bôi đen → action
 
@@ -40,6 +36,14 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 - History: xem lại, tìm kiếm, dùng lại
 - Mistakes: thống kê lỗi theo type, top lỗi lặp lại
 - Flashcard vocab theo FSRS (`ts-fsrs`)
+
+### Suggest: giải thích từ và cụm từ
+
+- Suggest **không** sửa lỗi input (input là ý, không phải câu để sửa).
+- LLM trả `{ suggestions: string[], vocab[{ phrase, meaning }] }`: `suggestions` đứng trước để stream ra trước.
+- `vocab` chỉ gồm từ ít phổ biến, phrasal verb, collocation, idiom, slang/cách nói gaming có trong các câu gợi ý (tối đa 4, có thể rỗng). Bỏ qua từ cơ bản.
+- `phrase` là đoạn ngắn nhất mang nghĩa, chép nguyên văn từ câu gợi ý để client gạch chân (`lib/assist/phrases.ts`, không phân biệt hoa thường, khớp nguyên từ) và hiện tooltip; `meaning` viết bằng tiếng Việt, ngắn, ghi rõ nếu là slang.
+- Về sau (Phase 3) mỗi mục `vocab` có nút **Save to vocab**.
 
 ### UX
 
@@ -69,14 +73,19 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 - Đo thử: `corrected` bắt đầu hiện sau ~1–1.4s, xong sau ~2–3s (Bedrock thỉnh thoảng chậm đột biến ~4s)
 - **Xong khi:** trong ~1 giây thấy câu đã sửa có highlight, copy được bằng một phím. Sau đó **dùng thật trên Discord khoảng 1 tuần** rồi mới làm tiếp.
 
-### Phase 2: Đủ các mode, kèm lịch sử
+### Phase 2: Mode Suggest, kèm lịch sử
 
-- [ ] Các mode Keywords, Describe, Reply (`lib/ai/modes/*`)
-- [ ] Option spoken/short
+- [x] Mode Suggest (`lib/ai/modes/suggest.ts`): system prompt và `suggestResultSchema` như mục "Suggest: giải thích từ và cụm từ"
+- [x] `lib/ai/modes/index.ts`: bảng `mode → { task, instructions, schema, temperature }`. Route `/api/assist` chọn theo mode; `saveSession` lưu mọi mode (Edit chỉ có ở Fix)
+- [x] Request schema `mode: 'fix' | 'suggest'`; migration `mode_fix_suggest`: enum `Mode` còn `FIX | SUGGEST`
+- [x] UI Suggest: 2–3 câu (`1/2/3` copy), cụm từ trong `vocab` gạch chân kèm tooltip, danh sách "Words & phrases" bên dưới. `Tab` / `Shift+Tab` đổi mode khi không focus gì (`Esc` để rời ô nhập), mode lưu localStorage, đổi mode giữ input nhưng xóa kết quả
+- [x] History hai mode: badge mode, lọc theo mode (`?mode=`), tìm cả trong `suggestions`, copy câu đầu tiên. `/?session=<id>` khôi phục đúng mode, tone và kết quả
+- [x] Route chọn sẵn id session (bản cache hoặc bản sẽ bị Regenerate ghi đè thì dùng lại id cũ) và trả qua header `x-assist-session`; stream xong có kết quả thì client ghi `?session=<id>` lên URL, reload hoặc gửi link là mở lại đúng câu trả lời
+- [x] Test (Vitest + Playwright) cho Suggest, cache key theo mode và History hai mode
 - [x] Lưu `Session` và `Edit` sau khi stream xong (`result.output` + `after()`); stream bị dừng hoặc lỗi thì không lưu
 - [x] Cache: `Session.cacheKey = sha256(mode, tone, input đã gộp khoảng trắng, model, system prompt, JSON schema)`. Gặp lại đúng key thì trả output cũ, không gọi model (UI hiện `cached`). Sửa prompt/schema/model là cache tự mất hiệu lực. Nút **Regenerate** (phím `R`) gửi `fresh: true` để bỏ qua cache, câu trả lời mới thay cho bản cũ
 - [x] Trang History (`/history`): tìm theo input hoặc câu đã sửa (`?q=`), phân trang cursor 30 mục/trang, copy câu. Bấm một mục mở `/?session=<id>`: trang Assist hiện lại đúng input, tone và kết quả đã lưu, không gọi model
-- [ ] Bộ khoảng 20 input mẫu cho mỗi mode để test lại prompt
+- **Xong khi:** Fix và Suggest dùng được hoàn toàn bằng bàn phím, kết quả được cache, lưu vào History và mở lại đúng trạng thái
 
 ### Phase 3: Bôi đen và action
 
@@ -88,7 +97,6 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 
 - [ ] Trang Mistakes
 - [ ] Trang Review (flashcard FSRS)
-- [ ] Mode Try first
 
 ### Phase 5: Hoàn thiện (tùy chọn)
 
@@ -135,7 +143,7 @@ model Session {
   output    Json
   model     String
   latencyMs Int?
-  cacheKey  String                       // hash(mode, tone, input, model, prompt)
+  cacheKey  String                       // hash(mode, tone, input, model, prompt, schema)
   createdAt DateTime @default(now())
   edits     Edit[]
   @@index([userId, createdAt])
@@ -181,7 +189,7 @@ model PhraseLookup {
   createdAt DateTime @default(now())
 }
 
-enum Mode     { FIX KEYWORDS DESCRIBE REPLY TRY_FIRST }
+enum Mode     { FIX SUGGEST }
 enum Tone     { CASUAL NEUTRAL POLITE }
 enum EditType { SPELLING GRAMMAR WORD_CHOICE NATURALNESS }
 ```

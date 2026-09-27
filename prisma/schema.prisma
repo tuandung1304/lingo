@@ -18,7 +18,7 @@ model Session {
   output    Json
   model     String
   latencyMs Int?
-  // hash(mode, tone, input, model, prompt): an identical request reuses this output
+  // hash(mode, tone, input, model, prompt, schema): an identical request reuses this output
   cacheKey  String
   createdAt DateTime @default(now())
   edits     Edit[]
@@ -71,10 +71,7 @@ model PhraseLookup {
 
 enum Mode {
   FIX
-  KEYWORDS
-  DESCRIBE
-  REPLY
-  TRY_FIRST
+  SUGGEST
 }
 
 enum Tone {

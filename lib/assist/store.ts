@@ -4,7 +4,11 @@ import { createHash } from 'node:crypto'
 import type { z } from 'zod'
 
 import type { EditType, Mode, Tone } from '@/generated/prisma/enums'
-import type { FixResult, Tone as RequestTone } from '@/lib/assist/schema'
+import type {
+  AssistResult,
+  Mode as RequestMode,
+  Tone as RequestTone,
+} from '@/lib/assist/schema'
 import { db } from '@/lib/db'
 
 // Whitespace doesn't change the answer, case does (Fix corrects capitalization)
@@ -27,39 +31,43 @@ export function cacheKey(parts: {
     .digest('hex')
 }
 
-// Latest stored output for this key, or null. A DB failure is a miss, never an error:
+// Latest stored session for this key: its id, which a regenerate overwrites, and its
+// output unless it no longer fits the schema. A DB failure is a miss, never an error:
 // the assist itself matters more than the cache.
-export async function findCachedOutput<T>(
+export async function findLatestSession<T>(
   userId: string,
   key: string,
   schema: z.ZodType<T>,
-): Promise<T | null> {
+): Promise<{ id: string; output: T | null } | null> {
   try {
     const hit = await db.session.findFirst({
       where: { userId, cacheKey: key },
       orderBy: { createdAt: 'desc' },
-      select: { output: true },
+      select: { id: true, output: true },
     })
     if (!hit) return null
     const parsed = schema.safeParse(hit.output)
-    return parsed.success ? parsed.data : null
+    return { id: hit.id, output: parsed.success ? parsed.data : null }
   } catch (error) {
     console.error('assist cache lookup failed', error)
     return null
   }
 }
 
-export async function saveFixSession(session: {
+// Edits are only stored for Fix, whose output is the only one that has them
+export async function saveSession(session: {
+  id: string
   userId: string
+  mode: RequestMode
   tone: RequestTone
   input: string
-  output: FixResult
+  output: AssistResult
   model: string
   latencyMs: number
   cacheKey: string
 }) {
-  const { userId, output } = session
-  const edits = output.edits.map((e) => ({
+  const { id, userId, output } = session
+  const edits = ('edits' in output ? output.edits : []).map((e) => ({
     userId,
     original: e.original,
     replacement: e.replacement,
@@ -68,35 +76,22 @@ export async function saveFixSession(session: {
   }))
   const data = {
     ...session,
-    mode: 'FIX' as Mode,
+    mode: session.mode.toUpperCase() as Mode,
     tone: session.tone.toUpperCase() as Tone,
   }
 
   await db.$transaction(async (tx) => {
-    const existing = await tx.session.findMany({
-      where: { userId, cacheKey: session.cacheKey },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    })
-    const [latest, ...duplicates] = existing
-
-    if (!latest) {
-      await tx.session.create({ data: { ...data, edits: { create: edits } } })
-      return
-    }
-
-    await tx.session.update({
-      where: { id: latest.id },
-      data: {
+    await tx.session.upsert({
+      where: { id },
+      create: { ...data, id, edits: { create: edits } },
+      update: {
         ...data,
         createdAt: new Date(),
         edits: { deleteMany: {}, create: edits },
       },
     })
-    if (duplicates.length > 0) {
-      await tx.session.deleteMany({
-        where: { id: { in: duplicates.map((d) => d.id) } },
-      })
-    }
+    await tx.session.deleteMany({
+      where: { userId, cacheKey: session.cacheKey, id: { not: id } },
+    })
   })
 }

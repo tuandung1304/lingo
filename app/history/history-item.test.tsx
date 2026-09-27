@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { FixResult } from '@/lib/assist/schema'
+import type { FixResult, SuggestResult } from '@/lib/assist/schema'
 
 import { HistoryItem } from './history-item'
 
@@ -23,6 +23,7 @@ function renderItem(output = OUTPUT, input = 'I goes to school every day.') {
   return render(
     <HistoryItem
       id="s1"
+      mode="fix"
       input={input}
       tone="casual"
       output={output}
@@ -75,5 +76,48 @@ describe('HistoryItem', () => {
     expect(
       screen.queryByText('Present simple, not third person.'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('HistoryItem (suggest)', () => {
+  const SUGGEST: SuggestResult = {
+    suggestions: ['The server was lagging like crazy.', 'Huge lag last night.'],
+    vocab: [{ phrase: 'like crazy', meaning: 'Rất nhiều, dữ dội.' }],
+  }
+
+  function renderSuggest() {
+    return render(
+      <HistoryItem
+        id="s2"
+        mode="suggest"
+        input="hôm qua server lag"
+        tone="casual"
+        output={SUGGEST}
+        createdAt={new Date('2026-09-27T10:00:00Z')}
+      />,
+    )
+  }
+
+  it('shows the input, the first suggestion and a summary', () => {
+    const { container } = renderSuggest()
+
+    expect(screen.getByText('hôm qua server lag')).toBeInTheDocument()
+    expect(container).toHaveTextContent('The server was lagging like crazy.')
+    expect(screen.getByText('Suggest')).toBeInTheDocument()
+    expect(screen.getByText('2 suggestions')).toBeInTheDocument()
+    expect(screen.getByText('1 phrase')).toBeInTheDocument()
+    expect(screen.queryByText('Huge lag last night.')).not.toBeInTheDocument()
+  })
+
+  it('copies the first suggestion', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText')
+    renderSuggest()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Copy first suggestion' }),
+    )
+
+    expect(writeText).toHaveBeenCalledWith('The server was lagging like crazy.')
   })
 })

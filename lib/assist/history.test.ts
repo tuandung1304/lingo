@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { FixResult } from '@/lib/assist/schema'
+import type { FixResult, SuggestResult } from '@/lib/assist/schema'
 
 const { findMany, findFirst } = vi.hoisted(() => ({
   findMany: vi.fn(),
@@ -18,9 +18,15 @@ const OUTPUT: FixResult = {
   edits: [],
 }
 
-function row(id: string, output: unknown = OUTPUT) {
+const SUGGEST: SuggestResult = {
+  suggestions: ['Server was lagging.'],
+  vocab: [],
+}
+
+function row(id: string, output: unknown = OUTPUT, mode = 'FIX') {
   return {
     id,
+    mode,
     input: 'hi there',
     tone: 'CASUAL',
     output,
@@ -50,6 +56,15 @@ describe('getHistoryItem', () => {
       id: 's1',
       tone: 'casual',
       output: OUTPUT,
+    })
+  })
+
+  it('returns a suggest session with its mode', async () => {
+    findFirst.mockResolvedValue(row('s2', SUGGEST, 'SUGGEST'))
+
+    expect(await getHistoryItem('user-1', 's2')).toMatchObject({
+      mode: 'suggest',
+      output: SUGGEST,
     })
   })
 
@@ -100,12 +115,38 @@ describe('listHistory', () => {
     })
   })
 
-  it('searches the input and the corrected sentence', async () => {
+  it('searches the input, the corrected sentence and the suggestions', async () => {
     await listHistory('user-1', { q: '  school ' })
 
     expect(findMany.mock.calls[0][0].where.OR).toEqual([
       { input: { contains: 'school', mode: 'insensitive' } },
       { output: { path: ['corrected'], string_contains: 'school' } },
+      { output: { path: ['suggestions', '0'], string_contains: 'school' } },
+      { output: { path: ['suggestions', '1'], string_contains: 'school' } },
+      { output: { path: ['suggestions', '2'], string_contains: 'school' } },
+    ])
+  })
+
+  it('lists every mode unless one is given', async () => {
+    await listHistory('user-1')
+    await listHistory('user-1', { mode: 'suggest' })
+
+    expect(findMany.mock.calls[0][0].where.mode).toBeUndefined()
+    expect(findMany.mock.calls[1][0].where.mode).toBe('SUGGEST')
+  })
+
+  it('parses each row by its own mode', async () => {
+    findMany.mockResolvedValue([
+      row('a'),
+      row('b', SUGGEST, 'SUGGEST'),
+      row('c', OUTPUT, 'SUGGEST'),
+    ])
+
+    const { items } = await listHistory('user-1')
+
+    expect(items.map((i) => [i.id, i.mode])).toEqual([
+      ['a', 'fix'],
+      ['b', 'suggest'],
     ])
   })
 

@@ -1,16 +1,23 @@
+import { randomUUID } from 'node:crypto'
+
 import { Output, streamText } from 'ai'
 import { after } from 'next/server'
 import { z } from 'zod'
 
 import { modelFor, streamingObjectOptions } from '@/lib/ai/models'
-import { fixSystemPrompt } from '@/lib/ai/modes/fix'
-import { assistRequestSchema, fixResultSchema } from '@/lib/assist/schema'
-import { cacheKey, findCachedOutput, saveFixSession } from '@/lib/assist/store'
+import { MODE_CONFIG } from '@/lib/ai/modes'
+import { assistRequestSchema, type Mode } from '@/lib/assist/schema'
+import { cacheKey, findLatestSession, saveSession } from '@/lib/assist/store'
 import { getCurrentUser } from '@/lib/auth'
 
 export const maxDuration = 30
 
-const fixSchemaJson = z.toJSONSchema(fixResultSchema)
+const SCHEMA_JSON = Object.fromEntries(
+  Object.entries(MODE_CONFIG).map(([mode, c]) => [
+    mode,
+    z.toJSONSchema(c.schema),
+  ]),
+) as Record<Mode, unknown>
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -24,37 +31,39 @@ export async function POST(request: Request) {
   }
   const { mode, input, tone, fresh } = parsed.data
 
-  const { id: modelId, model } = modelFor('fix')
-  const instructions = fixSystemPrompt(tone)
+  const config = MODE_CONFIG[mode]
+  const { id: modelId, model } = modelFor(config.task)
+  const instructions = config.instructions(tone)
   const key = cacheKey({
     mode,
     tone,
     input,
     model: modelId,
     instructions,
-    schema: fixSchemaJson,
+    schema: SCHEMA_JSON[mode],
   })
 
   // useObject parses the body as accumulating JSON, so a whole object works like a stream
-  const cached = fresh
-    ? null
-    : await findCachedOutput(user.id, key, fixResultSchema)
-  if (cached) {
-    return new Response(JSON.stringify(cached), {
+  const latest = await findLatestSession(user.id, key, config.schema)
+  if (!fresh && latest?.output) {
+    return new Response(JSON.stringify(latest.output), {
       headers: {
         'content-type': 'text/plain; charset=utf-8',
         'x-assist-cache': 'hit',
+        'x-assist-session': latest.id,
       },
     })
   }
+  // A regenerate replaces the latest answer, so it keeps that session's id
+  const sessionId = latest?.id ?? randomUUID()
 
   const start = Date.now()
   const result = streamText({
     model,
-    output: Output.object({ schema: fixResultSchema }),
+    output: Output.object({ schema: config.schema }),
     instructions,
     prompt: input,
-    temperature: 0.3,
+    temperature: config.temperature,
     maxOutputTokens: 800,
     providerOptions: streamingObjectOptions,
     abortSignal: request.signal,
@@ -64,8 +73,10 @@ export async function POST(request: Request) {
   // A stopped or failed stream has no complete output and is not saved.
   const saved = Promise.resolve(result.output)
     .then((output) =>
-      saveFixSession({
+      saveSession({
+        id: sessionId,
         userId: user.id,
+        mode,
         tone,
         input,
         output,
@@ -79,5 +90,7 @@ export async function POST(request: Request) {
     })
   after(() => saved)
 
-  return result.toTextStreamResponse()
+  return result.toTextStreamResponse({
+    headers: { 'x-assist-session': sessionId },
+  })
 }
