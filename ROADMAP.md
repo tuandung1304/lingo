@@ -1,4 +1,4 @@
-# Roadmap: English Assist App
+# Roadmap: Lingo
 
 App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): sửa câu, gợi ý câu nói, tra cụm từ, ôn tập lỗi và vocab.
 

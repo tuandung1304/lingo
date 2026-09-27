@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'English Assist',
+  title: 'Lingo',
   description: 'Personal English speaking assistant',
 }
 

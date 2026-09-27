@@ -15,7 +15,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <Logo className="mb-2 size-9 text-sm" />
-          <CardTitle className="text-base">English Assist</CardTitle>
+          <CardTitle className="text-base">Lingo</CardTitle>
           <CardDescription>Sign in to continue</CardDescription>
         </CardHeader>
         <CardContent>
