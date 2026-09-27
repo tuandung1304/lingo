@@ -17,6 +17,8 @@ export const assistRequestSchema = z.object({
   mode: z.literal('fix'),
   input: z.string().trim().min(1).max(1000),
   tone: z.enum(TONES),
+  // Skip the cache and ask the model again; the new answer replaces the cached one
+  fresh: z.boolean().optional(),
 })
 export type AssistRequest = z.infer<typeof assistRequestSchema>
 

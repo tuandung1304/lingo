@@ -18,10 +18,13 @@ model Session {
   output    Json
   model     String
   latencyMs Int?
+  // hash(mode, tone, input, model, prompt): an identical request reuses this output
+  cacheKey  String
   createdAt DateTime @default(now())
   edits     Edit[]
 
   @@index([userId, createdAt])
+  @@index([userId, cacheKey])
 }
 
 model Edit {

@@ -133,6 +133,53 @@ describe('Assist', () => {
     expect(await screen.findByText('Looks good')).toBeInTheDocument()
   })
 
+  it('regenerates the submitted sentence with fresh on "r"', async () => {
+    nextResult.current = FIX_RESULT
+    const user = userEvent.setup()
+    render(<Assist />)
+    await submitSentence(user, 'he goes school')
+    await screen.findByText('I head to school daily.')
+
+    await user.keyboard('r')
+
+    expect(submitCalls).toHaveLength(2)
+    expect(submitCalls[1]).toMatchObject({
+      input: 'he goes school',
+      fresh: true,
+    })
+  })
+
+  it('regenerates from the button with the current tone', async () => {
+    nextResult.current = FIX_RESULT
+    const user = userEvent.setup()
+    render(<Assist />)
+    await submitSentence(user, 'he goes school')
+    await screen.findByText('I head to school daily.')
+
+    await user.click(screen.getByRole('button', { name: 'polite' }))
+    await user.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    expect(submitCalls.at(-1)).toEqual<AssistRequest>({
+      mode: 'fix',
+      input: 'he goes school',
+      tone: 'polite',
+      fresh: true,
+    })
+  })
+
+  it('does not regenerate on "r" while typing', async () => {
+    nextResult.current = FIX_RESULT
+    const user = userEvent.setup()
+    render(<Assist />)
+    await submitSentence(user, 'he goes school')
+    await screen.findByText('I head to school daily.')
+
+    await user.click(screen.getByLabelText('Sentence to fix'))
+    await user.keyboard('r')
+
+    expect(submitCalls).toHaveLength(1)
+  })
+
   it('copies the corrected sentence to the clipboard on "1"', async () => {
     nextResult.current = FIX_RESULT
     const writeText = vi.spyOn(navigator.clipboard, 'writeText')

@@ -2,7 +2,7 @@
 
 import { useObject } from '@ai-sdk/react'
 import { cn } from 'cn'
-import { ArrowUp, Check, Languages, Square } from 'lucide-react'
+import { ArrowUp, Check, Languages, RotateCw, Square } from 'lucide-react'
 import {
   useEffect,
   useEffectEvent,
@@ -84,6 +84,7 @@ export function Assist() {
   // The input as it was when submitted, so edits to the box don't shift the diff
   const [submitted, setSubmitted] = useState('')
   const [firstByteMs, setFirstByteMs] = useState<number | null>(null)
+  const [cached, setCached] = useState(false)
   const [copied, setCopied] = useState<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isMac = useSyncExternalStore(noopSubscribe, isMacClient, isMacServer)
@@ -92,6 +93,7 @@ export function Assist() {
   async function timedFetch(url: RequestInfo | URL, init?: RequestInit) {
     const start = performance.now()
     const res = await fetch(url, init)
+    setCached(res.headers.get('x-assist-cache') === 'hit')
     if (!res.body) return res
     let seen = false
     const body = res.body.pipeThrough(
@@ -124,15 +126,26 @@ export function Assist() {
   const segments =
     done && edits.length > 0 ? buildSegments(submitted, corrected, edits) : null
 
+  function run(text: string, fresh: boolean) {
+    setSubmitted(text)
+    setFirstByteMs(null)
+    setCached(false)
+    setCopied(null)
+    submit({ mode: 'fix', input: text, tone, ...(fresh && { fresh }) })
+  }
+
   function send() {
     const text = input.trim()
     if (!text || isLoading) return
-    setSubmitted(text)
-    setFirstByteMs(null)
-    setCopied(null)
-    submit({ mode: 'fix', input: text, tone })
+    run(text, false)
     // Leave the box so 1/2/3 copy right away; `/` comes back
     inputRef.current?.blur()
+  }
+
+  // Same submitted text, current tone, bypassing the cache
+  function regenerate() {
+    if (!submitted || isLoading) return
+    run(submitted, true)
   }
 
   async function copy(index: number) {
@@ -160,6 +173,12 @@ export function Assist() {
     if (digit && (e.altKey || !isTyping(e.target))) {
       e.preventDefault()
       void copy(Number(digit) - 1)
+      return
+    }
+
+    if (e.key === 'r' && !e.altKey && !isTyping(e.target) && done) {
+      e.preventDefault()
+      regenerate()
       return
     }
 
@@ -262,6 +281,9 @@ export function Assist() {
           <Kbd>/</Kbd> Edit
         </span>
         <span className="flex items-center gap-1.5">
+          <Kbd>R</Kbd> Regenerate
+        </span>
+        <span className="flex items-center gap-1.5">
           <Kbd>Esc</Kbd> Stop
         </span>
       </div>
@@ -292,11 +314,25 @@ export function Assist() {
                   <Languages className="size-3.5" /> Rewritten in English
                 </span>
               )}
-              {firstByteMs !== null && (
-                <span className="ml-auto font-normal tracking-normal normal-case tabular-nums">
-                  {firstByteMs} ms
-                </span>
-              )}
+              <span className="ml-auto flex items-center gap-2 font-normal tracking-normal normal-case">
+                {firstByteMs !== null && (
+                  <span className="tabular-nums">
+                    {cached && 'cached · '}
+                    {firstByteMs} ms
+                  </span>
+                )}
+                {done && (
+                  <button
+                    type="button"
+                    onClick={regenerate}
+                    aria-label="Regenerate"
+                    title="Regenerate (R)"
+                    className="hover:bg-muted hover:text-foreground -my-1 rounded-md p-1"
+                  >
+                    <RotateCw className="size-3.5" />
+                  </button>
+                )}
+              </span>
             </SectionLabel>
             <div
               className={cn(

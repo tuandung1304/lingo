@@ -43,7 +43,7 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 
 ### UX
 
-- Focus sẵn ô input · `Ctrl+Enter` gửi · `1/2/3` copy lựa chọn · `Tab` đổi mode
+- Focus sẵn ô input · `Ctrl+Enter` gửi · `1/2/3` copy lựa chọn · `R` regenerate · `Tab` đổi mode
 - PWA để mở như một cửa sổ riêng cạnh Discord
 
 ---
@@ -73,7 +73,8 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 
 - [ ] Các mode Keywords, Describe, Reply (`lib/ai/modes/*`)
 - [ ] Option spoken/short
-- [ ] Lưu `Session` và `Edit` sau khi stream xong (`onFinish`)
+- [x] Lưu `Session` và `Edit` sau khi stream xong (`result.output` + `after()`); stream bị dừng hoặc lỗi thì không lưu
+- [x] Cache: `Session.cacheKey = sha256(mode, tone, input đã gộp khoảng trắng, model, system prompt, JSON schema)`. Gặp lại đúng key thì trả output cũ, không gọi model (UI hiện `cached`). Sửa prompt/schema/model là cache tự mất hiệu lực. Nút **Regenerate** (phím `R`) gửi `fresh: true` để bỏ qua cache, câu trả lời mới thay cho bản cũ
 - [ ] Trang History
 - [ ] Bộ khoảng 20 input mẫu cho mỗi mode để test lại prompt
 
@@ -105,6 +106,7 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 - `DATABASE_URL`: pooler port 6543 (transaction mode) cho runtime · `DIRECT_URL`: port 5432 cho migrate
 - Prisma kết nối bằng role `postgres` nên **bỏ qua RLS**: mọi query phải lọc theo `userId` ở server
 - Chỉ dùng Supabase cho Postgres + Auth, không truy cập data qua supabase-js
+- Không format file trong `prisma/migrations/` (đã ignore trong `.oxfmtrc.json`): sửa dù chỉ khoảng trắng cũng làm lệch checksum, `migrate dev` sẽ đòi reset DB
 - Prisma bản mới dùng `prisma.config.ts` + driver adapter (`@prisma/adapter-pg`): làm theo docs hiện tại
 - Project Supabase gói free tự pause sau khoảng 1 tuần không dùng
 
@@ -133,9 +135,11 @@ model Session {
   output    Json
   model     String
   latencyMs Int?
+  cacheKey  String                       // hash(mode, tone, input, model, prompt)
   createdAt DateTime @default(now())
   edits     Edit[]
   @@index([userId, createdAt])
+  @@index([userId, cacheKey])
 }
 
 model Edit {
