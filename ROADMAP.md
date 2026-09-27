@@ -75,7 +75,7 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 - [ ] Option spoken/short
 - [x] Lưu `Session` và `Edit` sau khi stream xong (`result.output` + `after()`); stream bị dừng hoặc lỗi thì không lưu
 - [x] Cache: `Session.cacheKey = sha256(mode, tone, input đã gộp khoảng trắng, model, system prompt, JSON schema)`. Gặp lại đúng key thì trả output cũ, không gọi model (UI hiện `cached`). Sửa prompt/schema/model là cache tự mất hiệu lực. Nút **Regenerate** (phím `R`) gửi `fresh: true` để bỏ qua cache, câu trả lời mới thay cho bản cũ
-- [ ] Trang History
+- [x] Trang History (`/history`): tìm theo input hoặc câu đã sửa (`?q=`), phân trang cursor 30 mục/trang, copy câu. Bấm một mục mở `/?session=<id>`: trang Assist hiện lại đúng input, tone và kết quả đã lưu, không gọi model
 - [ ] Bộ khoảng 20 input mẫu cho mỗi mode để test lại prompt
 
 ### Phase 3: Bôi đen và action

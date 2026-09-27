@@ -36,7 +36,7 @@ Don't duplicate coverage across layers: `buildSegments` is unit-tested exhaustiv
 - **No snapshot tests.** They pass on any change (including bugs) and get updated on autopilot; a targeted assertion catches the actual thing that matters and reads as documentation.
 - **`// @vitest-environment node`** on any test file with no DOM in it (see `lib/allowlist.test.ts`, `lib/assist/schema.test.ts`) — jsdom setup is the majority of a test file's runtime cost, and pure-logic tests don't need it.
 - **`server-only` modules are unit-testable.** The `server-only` package throws unless Next's own build sets a special export condition; `vitest.config.mts` aliases it to a no-op (`test/mocks/server-only.ts`) so files like `lib/auth.ts` can be imported directly in tests. Don't remove that alias to "fix" an unrelated failure — the throw is expected outside Next's build.
-- **`vi.mock(...)` factories are hoisted above imports.** Any variable a factory closes over must come from `vi.hoisted(() => ...)`, or you'll get a temporal-dead-zone error. See `components/mode-toggle.test.tsx` for the pattern.
+- **`vi.mock(...)` factories are hoisted above imports.** Any variable a factory closes over must come from `vi.hoisted(() => ...)`, or you'll get a temporal-dead-zone error. See `components/account-menu.test.tsx` for the pattern.
 - **React's `cache()`** (used by `getCurrentUser` in `lib/auth.ts`) memoizes per module instance. Tests that need different mock results per case call `vi.resetModules()` and re-`import()` the module fresh — see `lib/auth.test.ts`.
 
 ## Playwright specifics for this app
@@ -53,4 +53,4 @@ Don't duplicate coverage across layers: `buildSegments` is unit-tested exhaustiv
 - Business logic with actual edge cases: allowlist parsing, the highlight/diff matcher, zod schemas.
 - Interaction logic a regression would silently break: keyboard shortcuts, tone persistence, copy-to-clipboard.
 
-Don't chase 100%. A `ModeToggle` click handler with one happy-path test is enough; testing that `useTheme` itself works is `next-themes`'s job, not ours.
+Don't chase 100%. An `AccountMenu` theme switch with one happy-path test is enough; testing that `useTheme` itself works is `next-themes`'s job, not ours.

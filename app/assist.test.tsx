@@ -16,11 +16,11 @@ const { submitCalls, nextResult, stopSpy } = vi.hoisted(() => ({
 }))
 
 vi.mock('@ai-sdk/react', () => ({
-  useObject: () => {
+  useObject: ({ initialValue }: { initialValue?: FixResult }) => {
     const [state, setState] = useState<{
       object?: FixResult
       isLoading: boolean
-    }>({ isLoading: false })
+    }>({ isLoading: false, object: initialValue })
 
     return {
       object: state.object,
@@ -178,6 +178,56 @@ describe('Assist', () => {
     await user.keyboard('r')
 
     expect(submitCalls).toHaveLength(1)
+  })
+
+  describe('with an opened session', () => {
+    const SESSION = {
+      input: 'I goes to school every day.',
+      tone: 'polite' as const,
+      output: FIX_RESULT,
+      createdAt: new Date('2026-09-27T10:00:00Z'),
+    }
+
+    it('shows the saved input, tone and result without submitting', () => {
+      const { container } = render(<Assist session={SESSION} />)
+
+      expect(screen.getByLabelText('Sentence to fix')).toHaveValue(
+        SESSION.input,
+      )
+      expect(screen.getByRole('button', { name: 'polite' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(screen.getByText('I head to school daily.')).toBeInTheDocument()
+      expect(container).toHaveTextContent('Present simple, not third person.')
+      expect(screen.getByText(/^Saved/)).toBeInTheDocument()
+      expect(submitCalls).toHaveLength(0)
+    })
+
+    it('does not overwrite the saved tone preference', () => {
+      localStorage.setItem('assist.tone', 'casual')
+
+      render(<Assist session={SESSION} />)
+
+      expect(localStorage.getItem('assist.tone')).toBe('casual')
+    })
+
+    it('regenerates the session input and drops ?session= from the URL', async () => {
+      window.history.replaceState(null, '', '/?session=s1')
+      const user = userEvent.setup()
+      render(<Assist session={SESSION} />)
+
+      await user.keyboard('r')
+
+      expect(submitCalls.at(-1)).toEqual<AssistRequest>({
+        mode: 'fix',
+        input: SESSION.input,
+        tone: 'polite',
+        fresh: true,
+      })
+      expect(window.location.search).toBe('')
+      expect(screen.queryByText(/^Saved/)).not.toBeInTheDocument()
+    })
   })
 
   it('copies the corrected sentence to the clipboard on "1"', async () => {

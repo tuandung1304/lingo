@@ -33,6 +33,7 @@ import {
   SectionLabel,
   StreamCaret,
 } from './assist-output'
+import { type ModeId, ModeTabs } from './mode-tabs'
 
 const MAX_INPUT = 1000
 
@@ -74,15 +75,26 @@ const toneStore = {
 }
 const serverTone = (): Tone => 'casual'
 
-export function Assist() {
-  const [input, setInput] = useState('')
-  const tone = useSyncExternalStore(
+export type AssistSession = {
+  input: string
+  tone: Tone
+  output: FixResult
+  createdAt: Date
+}
+
+export function Assist({ session }: { session?: AssistSession | null }) {
+  const [input, setInput] = useState(session?.input ?? '')
+  const [mode, setMode] = useState<ModeId>('fix')
+  const preferredTone = useSyncExternalStore(
     toneStore.subscribe,
     toneStore.get,
     serverTone,
   )
+  const [sessionTone, setSessionTone] = useState(session?.tone)
+  const tone = sessionTone ?? preferredTone
   // The input as it was when submitted, so edits to the box don't shift the diff
-  const [submitted, setSubmitted] = useState('')
+  const [submitted, setSubmitted] = useState(session?.input ?? '')
+  const [savedAt, setSavedAt] = useState(session?.createdAt)
   const [firstByteMs, setFirstByteMs] = useState<number | null>(null)
   const [cached, setCached] = useState(false)
   const [copied, setCopied] = useState<number | null>(null)
@@ -114,7 +126,12 @@ export function Assist() {
     typeof fixResultSchema,
     FixResult,
     AssistRequest
-  >({ api: '/api/assist', schema: fixResultSchema, fetch: timedFetch })
+  >({
+    api: '/api/assist',
+    schema: fixResultSchema,
+    fetch: timedFetch,
+    initialValue: session?.output,
+  })
 
   const corrected = object?.corrected ?? ''
   const options = [corrected, ...(object?.alternatives ?? [])].filter(
@@ -127,6 +144,11 @@ export function Assist() {
     done && edits.length > 0 ? buildSegments(submitted, corrected, edits) : null
 
   function run(text: string, fresh: boolean) {
+    // A new answer is no longer the opened session; drop ?session= so a reload starts fresh
+    if (savedAt) {
+      setSavedAt(undefined)
+      window.history.replaceState(null, '', '/')
+    }
     setSubmitted(text)
     setFirstByteMs(null)
     setCached(false)
@@ -189,8 +211,10 @@ export function Assist() {
     }
   })
 
+  // An opened session leaves focus off the box so 1/2/3 copy right away
+  const focusOnMount = useRef(!session)
   useEffect(() => {
-    inputRef.current?.focus()
+    if (focusOnMount.current) inputRef.current?.focus()
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
@@ -203,6 +227,9 @@ export function Assist() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="-mb-3">
+        <ModeTabs value={mode} onChange={setMode} />
+      </div>
       <form
         className="bg-card focus-within:border-ring focus-within:ring-ring/30 rounded-xl border shadow-xs transition-[color,box-shadow] focus-within:ring-3"
         onSubmit={(e) => {
@@ -232,7 +259,11 @@ export function Assist() {
             size="sm"
             spacing={1}
             value={[tone]}
-            onValueChange={(v) => v[0] && toneStore.set(v[0] as Tone)}
+            onValueChange={(v) => {
+              if (!v[0]) return
+              setSessionTone(undefined)
+              toneStore.set(v[0] as Tone)
+            }}
             aria-label="Tone"
             className="bg-muted rounded-lg p-0.5"
           >
@@ -315,6 +346,18 @@ export function Assist() {
                 </span>
               )}
               <span className="ml-auto flex items-center gap-2 font-normal tracking-normal normal-case">
+                {savedAt && (
+                  <time
+                    dateTime={savedAt.toISOString()}
+                    suppressHydrationWarning
+                  >
+                    Saved{' '}
+                    {savedAt.toLocaleString(undefined, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </time>
+                )}
                 {firstByteMs !== null && (
                   <span className="tabular-nums">
                     {cached && 'cached · '}
