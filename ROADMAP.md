@@ -62,10 +62,11 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 
 ### Phase 1: MVP, mode Fix
 
-- [ ] `POST /api/assist` dùng `streamObject` với schema Fix
-- [ ] UI: input, tone, output stream, copy
-- [ ] Highlight diff và tooltip giải thích
-- [ ] Phím tắt cơ bản
+- [x] `POST /api/assist` dùng `streamText` + `Output.object` (AI SDK 7 thay cho `streamObject`) với schema Fix, `structuredOutputMode: 'outputFormat'` để thật sự stream
+- [x] UI: input, tone (lưu localStorage), output stream qua `useObject`, copy
+- [x] Highlight diff (`lib/assist/highlight.ts`) và tooltip giải thích, kèm danh sách edits bên dưới
+- [x] Phím tắt: `⌘/Ctrl+Enter` gửi · `1/2/3` copy (`⌥1–3` khi đang gõ) · `/` quay lại ô nhập · `Esc` dừng stream
+- Đo thử: `corrected` bắt đầu hiện sau ~1–1.4s, xong sau ~2–3s (Bedrock thỉnh thoảng chậm đột biến ~4s)
 - **Xong khi:** trong ~1 giây thấy câu đã sửa có highlight, copy được bằng một phím. Sau đó **dùng thật trên Discord khoảng 1 tuần** rồi mới làm tiếp.
 
 ### Phase 2: Đủ các mode, kèm lịch sử
@@ -90,7 +91,8 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 
 ### Phase 5: Hoàn thiện (tùy chọn)
 
-- [ ] PWA, nhập bằng giọng nói (Web Speech API), dark mode
+- [x] Dark mode với `next-themes`: light / dark / system
+- [ ] PWA, nhập bằng giọng nói (Web Speech API)
 - [ ] Rate limit, thống kê token/chi phí
 - [ ] Discord bot slash command trong server riêng (**không** làm self-bot, vi phạm ToS)
 

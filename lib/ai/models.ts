@@ -33,3 +33,9 @@ export function modelFor(task: Task) {
   const id = MODEL_IDS[ROUTES[task]]
   return { id, model: bedrock(id) }
 }
+
+// With `auto`, the global.* profile falls back to the json-tool mode, which Bedrock
+// buffers until the end. Native output_config.format streams the object as it is written.
+export const streamingObjectOptions = {
+  bedrock: { structuredOutputMode: 'outputFormat' },
+} as const
