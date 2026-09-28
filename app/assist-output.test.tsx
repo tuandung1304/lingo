@@ -8,14 +8,14 @@ import { CopyHint, EditList, Highlighted } from './assist-output'
 
 describe('CopyHint', () => {
   it('shows the shortcut number by default', () => {
-    render(<CopyHint index={0} copied={false} />)
+    const { container } = render(<CopyHint index={0} copied={false} />)
     expect(screen.getByText('1')).toBeInTheDocument()
-    expect(screen.queryByText('Copied')).not.toBeInTheDocument()
+    expect(container.querySelector('.lucide-check')).not.toBeInTheDocument()
   })
 
-  it('shows "Copied" once copied', () => {
-    render(<CopyHint index={2} copied={true} />)
-    expect(screen.getByText('Copied')).toBeInTheDocument()
+  it('shows a check icon once copied', () => {
+    const { container } = render(<CopyHint index={2} copied={true} />)
+    expect(container.querySelector('.lucide-check')).toBeInTheDocument()
   })
 })
 

@@ -68,9 +68,7 @@ export function CopyHint({
   return (
     <span className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
       {copied ? (
-        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-          <Check className="size-3.5" /> Copied
-        </span>
+        <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
       ) : (
         <Copy className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
       )}

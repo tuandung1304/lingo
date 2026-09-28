@@ -7,9 +7,14 @@ import { useState } from 'react'
 
 import { buildSegments } from '@/lib/assist/highlight'
 import type { HistoryItem as Item } from '@/lib/assist/history'
-import { MODE_LABELS } from '@/lib/assist/schema'
+import { type Mode, MODE_LABELS } from '@/lib/assist/schema'
 
 import { Highlighted, Phrased } from '../assist-output'
+
+const MODE_COLORS: Record<Mode, string> = {
+  fix: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+  suggest: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+}
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -84,7 +89,12 @@ export function HistoryItem(item: Item) {
       </div>
 
       <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-        <span className="bg-muted text-foreground/80 rounded-md px-1.5 py-0.5 font-medium">
+        <span
+          className={cn(
+            'rounded-md px-1.5 py-0.5 font-medium',
+            MODE_COLORS[mode],
+          )}
+        >
           {MODE_LABELS[mode]}
         </span>
         {/* Server and browser time zones differ; the browser's value wins */}
