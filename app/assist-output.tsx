@@ -72,7 +72,7 @@ export function CopyHint({
       ) : (
         <Copy className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
       )}
-      <Kbd>{index + 1}</Kbd>
+      <Kbd className="hidden sm:inline-flex">{index + 1}</Kbd>
     </span>
   )
 }

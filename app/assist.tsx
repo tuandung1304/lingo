@@ -309,7 +309,8 @@ export function Assist({ session }: { session?: AssistSession | null }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const mod = isMac ? '⌘' : 'Ctrl'
+  const mod = isMac ? '⌘' : 'Ctrl+'
+  const enter = isMac ? '↵' : 'Enter'
   const alt = isMac ? '⌥' : 'Alt+'
   const copyText = MODE_COPY[mode]
   const alternatives = mode === 'fix' ? options.slice(1) : []
@@ -408,13 +409,14 @@ export function Assist({ session }: { session?: AssistSession | null }) {
             {isLoading ? (
               <Button type="button" variant="outline" onClick={() => stop()}>
                 <Square className="fill-current" /> Stop
-                <Kbd>Esc</Kbd>
+                <Kbd className="hidden sm:inline-flex">Esc</Kbd>
               </Button>
             ) : (
               <Button type="submit" disabled={!input.trim()}>
                 <ArrowUp /> {MODE_LABELS[mode]}
-                <Kbd className="bg-primary-foreground/15 text-primary-foreground">
-                  {mod}↵
+                <Kbd className="bg-primary-foreground/15 text-primary-foreground hidden sm:inline-flex">
+                  {mod}
+                  {enter}
                 </Kbd>
               </Button>
             )}
@@ -422,9 +424,13 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </div>
       </form>
 
-      <div className="text-muted-foreground -mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs">
+      <div className="text-muted-foreground -mt-3 hidden flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs sm:flex">
         <span className="flex items-center gap-1.5">
-          <Kbd>{mod}↵</Kbd> {MODE_LABELS[mode]}
+          <Kbd>
+            {mod}
+            {enter}
+          </Kbd>{' '}
+          {MODE_LABELS[mode]}
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>Tab</Kbd> Mode
