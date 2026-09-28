@@ -240,7 +240,7 @@ describe('POST /api/assist', () => {
       })
 
       const { instructions, prompt } = streamText.mock.calls[0][0]
-      expect(instructions).toContain('what they want to say')
+      expect(instructions).toContain('infer the intended meaning')
       expect(prompt).toBe('server lag hôm qua')
     })
 

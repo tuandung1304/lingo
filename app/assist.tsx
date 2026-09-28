@@ -474,7 +474,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
             </SectionLabel>
             <div
               className={cn(
-                'group bg-card flex items-start gap-3 rounded-xl border p-4 transition-colors',
+                'group bg-card ring-foreground/5 flex items-start gap-3 rounded-xl border p-4 shadow-sm ring-1 transition-colors',
                 copied === 0 && 'border-emerald-500/40',
               )}
             >

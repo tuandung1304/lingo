@@ -10,7 +10,7 @@ interface Props {
 
 export function Header({ userEmail }: Props) {
   return (
-    <header className="bg-background/80 sticky top-0 z-10 border-b backdrop-blur">
+    <header className="bg-background/80 shadow-black/5 sticky top-0 z-10 border-b shadow-sm backdrop-blur">
       <div className="mx-auto flex h-12 w-full max-w-2xl items-center gap-3 px-4">
         <Link href="/" aria-label="Lingo" className="shrink-0">
           <Logo />

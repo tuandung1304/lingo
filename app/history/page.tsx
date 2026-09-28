@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { Search } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 import Link from 'next/link'
 
 import { Header } from '@/components/header'
@@ -72,19 +72,22 @@ export default async function HistoryPage({
         </nav>
 
         {items.length === 0 ? (
-          <p className="text-muted-foreground py-12 text-center text-sm">
-            {q ? (
-              <>No sentences match “{q}”.</>
-            ) : (
-              <>
-                Nothing yet. Sentences you fix or get suggestions for show up
-                here.{' '}
-                <Link href="/" className="text-foreground underline">
-                  Try one
-                </Link>
-              </>
-            )}
-          </p>
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <Search className="text-muted-foreground/30 size-8" />
+            <p className="text-muted-foreground text-sm">
+              {q ? (
+                <>No sentences match “{q}”.</>
+              ) : (
+                <>
+                  Nothing yet. Sentences you fix or get suggestions for show
+                  up here.{' '}
+                  <Link href="/" className="text-foreground underline">
+                    Try one
+                  </Link>
+                </>
+              )}
+            </p>
+          </div>
         ) : (
           <ul className="flex flex-col gap-2">
             {items.map((item) => (
@@ -105,9 +108,10 @@ export default async function HistoryPage({
             }}
             className={buttonVariants({
               variant: 'outline',
-              className: 'self-center',
+              className: 'self-center gap-1.5',
             })}
           >
+            <ChevronDown className="size-3.5" />
             Older
           </Link>
         )}
