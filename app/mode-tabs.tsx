@@ -2,6 +2,8 @@
 
 import { cn } from 'cn'
 
+import { MODE_INK } from '@/components/mode-ink'
+import { Scribble } from '@/components/scribble'
 import { type Mode, MODE_LABELS, MODES } from '@/lib/assist/schema'
 
 export function ModeTabs({
@@ -12,27 +14,30 @@ export function ModeTabs({
   onChange: (mode: Mode) => void
 }) {
   return (
-    <div
-      role="tablist"
-      aria-label="Mode"
-      className="-mx-4 flex scrollbar-none gap-1 overflow-x-auto px-4"
-    >
-      {MODES.map((m) => (
-        <button
-          key={m}
-          type="button"
-          role="tab"
-          aria-selected={m === value}
-          onClick={() => onChange(m)}
-          className={cn(
-            'text-muted-foreground flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
-            'hover:text-foreground hover:bg-muted/60',
-            'aria-selected:bg-foreground aria-selected:text-background aria-selected:hover:bg-foreground',
-          )}
-        >
-          {MODE_LABELS[m]}
-        </button>
-      ))}
+    <div role="tablist" aria-label="Mode" className="-ml-2 flex gap-1">
+      {MODES.map((m) => {
+        const selected = m === value
+        return (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(m)}
+            className={cn(
+              'focus-visible:ring-ring/50 relative rounded-md px-2 pt-1 pb-2.5 text-lg font-semibold tracking-tight transition-colors outline-none focus-visible:ring-3',
+              selected
+                ? MODE_INK[m].text
+                : 'text-muted-foreground/80 hover:text-foreground',
+            )}
+          >
+            {MODE_LABELS[m]}
+            {selected && (
+              <Scribble className="absolute inset-x-1.5 bottom-0.5 w-[calc(100%-0.75rem)]" />
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }

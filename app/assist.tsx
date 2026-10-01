@@ -356,7 +356,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="-mb-3">
+      <div className="-mb-2">
         <ModeTabs value={mode} onChange={changeMode} />
       </div>
       <form
