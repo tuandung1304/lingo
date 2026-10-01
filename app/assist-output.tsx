@@ -70,7 +70,7 @@ export function CopyHint({
       {copied ? (
         <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
       ) : (
-        <Copy className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+        <Copy className="size-3.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100" />
       )}
       <Kbd className="hidden sm:inline-flex">{index + 1}</Kbd>
     </span>
