@@ -124,9 +124,8 @@ describe('Assist', () => {
 
     await submitSentence(user, 'he goes school')
 
-    // The corrected sentence is split across <ins>/<del>/<span> nodes by the
-    // word-diff highlighting, so it can't be matched as one text node -
-    // asserting on the rendered section's full text is more robust here.
+    // The red-pen marks split the corrected sentence across <del>/<ruby> nodes;
+    // the plain copy kept for screen readers is what reads as one sentence.
     const corrected = await screen.findByText('I head to school daily.')
     expect(corrected).toBeInTheDocument()
     expect(container).toHaveTextContent('I go to school every day.')

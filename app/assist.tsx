@@ -491,7 +491,17 @@ export function Assist({ session }: { session?: AssistSession | null }) {
               )}
             >
               <p className="flex-1 text-lg leading-relaxed text-pretty">
-                {segments ? <Highlighted segments={segments} /> : corrected}
+                {segments ? (
+                  // Marks above the line scramble reading order, so screen readers get the plain sentence
+                  <>
+                    <span className="sr-only">{corrected}</span>
+                    <span aria-hidden>
+                      <Highlighted segments={segments} edits={edits} animated />
+                    </span>
+                  </>
+                ) : (
+                  corrected
+                )}
                 {isLoading && <StreamCaret />}
               </p>
               <button

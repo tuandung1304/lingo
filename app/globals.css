@@ -168,3 +168,44 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* A red-pen stroke through a struck word, drawn as a background so it can animate */
+@utility pen-strike {
+  background: linear-gradient(var(--ink-fix), var(--ink-fix)) no-repeat 0 58% /
+    100% 2px;
+  box-decoration-break: clone;
+}
+
+@utility animate-strike {
+  animation: strike 260ms cubic-bezier(0.3, 0, 0.2, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility animate-ink {
+  animation: ink 240ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility ruby-center {
+  ruby-align: center;
+  ruby-position: over;
+}
+
+@keyframes strike {
+  from {
+    background-size: 0% 2px;
+  }
+}
+
+@keyframes ink {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
