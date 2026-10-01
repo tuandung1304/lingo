@@ -121,3 +121,20 @@ describe('HistoryItem (suggest)', () => {
     expect(writeText).toHaveBeenCalledWith('The server was lagging like crazy.')
   })
 })
+
+describe('HistoryItem (write)', () => {
+  it('counts replies with the right plural', () => {
+    render(
+      <HistoryItem
+        id="s3"
+        mode="write"
+        input="viết lời chào"
+        tone="casual"
+        output={{ suggestions: ['Hey!', 'Hi there!'], vocab: [] }}
+        createdAt={new Date('2026-09-27T10:00:00Z')}
+      />,
+    )
+
+    expect(screen.getByText('2 replies')).toBeInTheDocument()
+  })
+})

@@ -46,13 +46,14 @@ export function StreamCaret() {
   )
 }
 
-// A page with a margin rule in the mode's pen colour
+// A page with a margin rule in the mode's pen colour.
+// Without a mode it keeps the plain red margin of a school notebook
 export function Sheet({
   mode,
   className,
   children,
 }: {
-  mode: Mode
+  mode?: Mode
   className?: string
   children: React.ReactNode
 }) {
@@ -67,7 +68,7 @@ export function Sheet({
         aria-hidden
         className={cn(
           'absolute inset-y-0 left-(--margin) w-px transition-colors',
-          MODE_INK[mode].margin,
+          mode ? MODE_INK[mode].margin : 'bg-ink-fix/30',
         )}
       />
       {children}
