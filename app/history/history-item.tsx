@@ -14,6 +14,7 @@ import { Highlighted, Phrased } from '../assist-output'
 const MODE_COLORS: Record<Mode, string> = {
   fix: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
   suggest: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  write: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -39,16 +40,21 @@ export function HistoryItem(item: Item) {
     ]
   } else {
     const { suggestions, vocab } = item.output
+    const noun = item.mode === 'write' ? 'reply' : 'suggestion'
     body = <Phrased text={suggestions[0] ?? ''} vocab={vocab} />
     copyText = suggestions[0] ?? ''
     showInput = true
     summary = [
-      suggestions.length > 1 && plural(suggestions.length, 'suggestion'),
+      suggestions.length > 1 && plural(suggestions.length, noun),
       vocab.length > 0 && plural(vocab.length, 'phrase'),
     ]
   }
   const copyLabel =
-    mode === 'fix' ? 'Copy corrected sentence' : 'Copy first suggestion'
+    mode === 'fix'
+      ? 'Copy corrected sentence'
+      : mode === 'write'
+        ? 'Copy first reply'
+        : 'Copy first suggestion'
 
   async function copy() {
     try {

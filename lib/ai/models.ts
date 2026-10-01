@@ -11,12 +11,13 @@ const MODEL_IDS = {
   haiku: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
 } as const
 
-export type Task = 'fix' | 'suggest' | 'lookup'
+export type Task = 'fix' | 'suggest' | 'write' | 'lookup'
 
 // Change a task's model here without touching call sites
 const ROUTES: Record<Task, keyof typeof MODEL_IDS> = {
   fix: 'haiku',
   suggest: 'haiku',
+  write: 'haiku',
   lookup: 'haiku',
 }
 

@@ -8,10 +8,12 @@ import {
   type Mode,
   suggestResultSchema,
   type Tone,
+  writeResultSchema,
 } from '@/lib/assist/schema'
 
 import { fixSystemPrompt } from './fix'
 import { suggestSystemPrompt } from './suggest'
+import { writeSystemPrompt } from './write'
 
 export interface ModeConfig {
   task: Task
@@ -32,5 +34,11 @@ export const MODE_CONFIG: Record<Mode, ModeConfig> = {
     instructions: suggestSystemPrompt,
     schema: suggestResultSchema,
     temperature: 0.6,
+  },
+  write: {
+    task: 'write',
+    instructions: writeSystemPrompt,
+    schema: writeResultSchema,
+    temperature: 0.7,
   },
 }

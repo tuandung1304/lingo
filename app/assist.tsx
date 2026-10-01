@@ -30,6 +30,7 @@ import {
   TONES,
   type Tone,
   type VocabNote,
+  type WriteResult,
 } from '@/lib/assist/schema'
 
 import {
@@ -97,6 +98,10 @@ const MODE_COPY: Record<Mode, { inputLabel: string; placeholder: string }> = {
     inputLabel: 'What you want to say',
     placeholder: 'Describe it in Vietnamese, or type a few English words…',
   },
+  write: {
+    inputLabel: 'What you want it to do',
+    placeholder: 'Describe what to write…',
+  },
 }
 
 export type AssistSession = {
@@ -106,6 +111,7 @@ export type AssistSession = {
 } & (
   | { mode: 'fix'; output: FixResult }
   | { mode: 'suggest'; output: SuggestResult }
+  | { mode: 'write'; output: WriteResult }
 )
 
 export function Assist({ session }: { session?: AssistSession | null }) {
@@ -182,8 +188,8 @@ export function Assist({ session }: { session?: AssistSession | null }) {
   const fix =
     mode === 'fix' ? (object as DeepPartial<FixResult> | undefined) : undefined
   const suggest =
-    mode === 'suggest'
-      ? (object as DeepPartial<SuggestResult> | undefined)
+    mode === 'suggest' || mode === 'write'
+      ? (object as DeepPartial<SuggestResult | WriteResult> | undefined)
       : undefined
 
   const corrected = fix?.corrected ?? ''
@@ -533,11 +539,11 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </section>
       )}
 
-      {mode === 'suggest' && suggestions.length > 0 && (
+      {(mode === 'suggest' || mode === 'write') && suggestions.length > 0 && (
         <section className="flex flex-col gap-5" aria-live="polite">
           <div className="flex flex-col gap-2">
             <SectionLabel>
-              Say it like this
+              {mode === 'write' ? 'Here it is' : 'Say it like this'}
               {meta}
             </SectionLabel>
             {suggestions.map((text, i) => (

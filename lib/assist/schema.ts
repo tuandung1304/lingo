@@ -3,11 +3,12 @@ import { z } from 'zod'
 // Shared by the /api/assist route and the client (useObject)
 
 // Order is the Tab-cycling order on the Assist page
-export const MODES = ['fix', 'suggest'] as const
+export const MODES = ['fix', 'suggest', 'write'] as const
 export type Mode = (typeof MODES)[number]
 export const MODE_LABELS: Record<Mode, string> = {
   fix: 'Fix',
   suggest: 'Suggest',
+  write: 'Write',
 }
 
 export const TONES = ['casual', 'neutral', 'polite'] as const
@@ -91,9 +92,37 @@ export const suggestResultSchema = z.object({
 export type SuggestResult = z.infer<typeof suggestResultSchema>
 export type VocabNote = SuggestResult['vocab'][number]
 
+export const writeResultSchema = z.object({
+  suggestions: z
+    .array(z.string())
+    .describe(
+      '2 or 3 distinct English messages that fulfill what the user asked for (actual content, e.g. an actual joke) — not a translation of their request.',
+    ),
+  vocab: z
+    .array(
+      z.object({
+        phrase: z
+          .string()
+          .describe(
+            'A word or phrase copied exactly from one of the suggestions.',
+          ),
+        meaning: z
+          .string()
+          .describe(
+            'Short Vietnamese explanation of its meaning and when to use it.',
+          ),
+      }),
+    )
+    .describe(
+      'Uncommon words, phrasal verbs, idioms or slang worth learning. May be empty.',
+    ),
+})
+export type WriteResult = z.infer<typeof writeResultSchema>
+
 // For the client's useObject, which only uses it for typing
 export const assistResultSchema = z.union([
   fixResultSchema,
   suggestResultSchema,
+  writeResultSchema,
 ])
 export type AssistResult = z.infer<typeof assistResultSchema>

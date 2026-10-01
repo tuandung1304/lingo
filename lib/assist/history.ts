@@ -8,6 +8,8 @@ import {
   type SuggestResult,
   suggestResultSchema,
   type Tone,
+  type WriteResult,
+  writeResultSchema,
 } from '@/lib/assist/schema'
 import { db } from '@/lib/db'
 
@@ -21,6 +23,7 @@ export type HistoryItem = {
 } & (
   | { mode: 'fix'; output: FixResult }
   | { mode: 'suggest'; output: SuggestResult }
+  | { mode: 'write'; output: WriteResult }
 )
 
 const ITEM_SELECT = {
@@ -45,6 +48,12 @@ function toItem(row: ItemRow): HistoryItem | null {
   if (row.mode === 'FIX') {
     const output = fixResultSchema.safeParse(row.output)
     return output.success ? { ...base, mode: 'fix', output: output.data } : null
+  }
+  if (row.mode === 'WRITE') {
+    const output = writeResultSchema.safeParse(row.output)
+    return output.success
+      ? { ...base, mode: 'write', output: output.data }
+      : null
   }
   const output = suggestResultSchema.safeParse(row.output)
   return output.success
