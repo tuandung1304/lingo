@@ -286,7 +286,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
     }
 
     const digit = /^Digit([1-3])$/.exec(e.code)?.[1]
-    if (digit && (e.altKey || !isTyping(e.target))) {
+    if (digit && !e.altKey && !isTyping(e.target)) {
       e.preventDefault()
       void copy(Number(digit) - 1)
       return
@@ -298,7 +298,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
       return
     }
 
-    // Only with nothing focused, so Tab still moves between buttons and fields
+    // With nothing focused; the input box handles its own Tab
     if (e.key === 'Tab' && !e.altKey && e.target === document.body) {
       e.preventDefault()
       cycleMode(e.shiftKey ? -1 : 1)
@@ -322,7 +322,6 @@ export function Assist({ session }: { session?: AssistSession | null }) {
 
   const mod = isMac ? '⌘' : 'Ctrl+'
   const enter = isMac ? '↵' : 'Enter'
-  const alt = isMac ? '⌥' : 'Alt+'
   const copyText = MODE_COPY[mode]
   const alternatives = mode === 'fix' ? options.slice(1) : []
   const unchanged = done && edits.length === 0 && corrected === submitted
@@ -384,6 +383,16 @@ export function Assist({ session }: { session?: AssistSession | null }) {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
               e.preventDefault()
               send()
+            } else if (
+              e.key === 'Tab' &&
+              !e.nativeEvent.isComposing &&
+              !e.altKey &&
+              !e.ctrlKey &&
+              !e.metaKey
+            ) {
+              // Switch mode without leaving the box; Esc leaves it
+              e.preventDefault()
+              cycleMode(e.shiftKey ? -1 : 1)
             } else if (e.key === 'Escape' && !isLoading) {
               e.currentTarget.blur()
             }
@@ -454,7 +463,6 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>1</Kbd>–<Kbd>3</Kbd> Copy
-          <span className="opacity-70">({alt}1 while typing)</span>
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>/</Kbd> Edit

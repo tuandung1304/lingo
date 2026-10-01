@@ -69,7 +69,7 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 - [x] `POST /api/assist` dùng `streamText` + `Output.object` (AI SDK 7 thay cho `streamObject`) với schema Fix, `structuredOutputMode: 'outputFormat'` để thật sự stream
 - [x] UI: input, tone (lưu localStorage), output stream qua `useObject`, copy
 - [x] Highlight diff (`lib/assist/highlight.ts`) và tooltip giải thích, kèm danh sách edits bên dưới
-- [x] Phím tắt: `⌘/Ctrl+Enter` gửi · `1/2/3` copy (`⌥1–3` khi đang gõ) · `/` quay lại ô nhập · `Esc` dừng stream
+- [x] Phím tắt: `⌘/Ctrl+Enter` gửi · `1/2/3` copy · `/` quay lại ô nhập · `Esc` dừng stream
 - Đo thử: `corrected` bắt đầu hiện sau ~1–1.4s, xong sau ~2–3s (Bedrock thỉnh thoảng chậm đột biến ~4s)
 - **Xong khi:** trong ~1 giây thấy câu đã sửa có highlight, copy được bằng một phím. Sau đó **dùng thật trên Discord khoảng 1 tuần** rồi mới làm tiếp.
 
@@ -78,7 +78,7 @@ App cá nhân hỗ trợ giao tiếp tiếng Anh (chủ yếu trên Discord): s�
 - [x] Mode Suggest (`lib/ai/modes/suggest.ts`): system prompt và `suggestResultSchema` như mục "Suggest: giải thích từ và cụm từ"
 - [x] `lib/ai/modes/index.ts`: bảng `mode → { task, instructions, schema, temperature }`. Route `/api/assist` chọn theo mode; `saveSession` lưu mọi mode (Edit chỉ có ở Fix)
 - [x] Request schema `mode: 'fix' | 'suggest'`; migration `mode_fix_suggest`: enum `Mode` còn `FIX | SUGGEST`
-- [x] UI Suggest: 2–3 câu (`1/2/3` copy), cụm từ trong `vocab` gạch chân kèm tooltip, danh sách "Words & phrases" bên dưới. `Tab` / `Shift+Tab` đổi mode khi không focus gì (`Esc` để rời ô nhập), mode lưu localStorage, đổi mode giữ input nhưng xóa kết quả
+- [x] UI Suggest: 2–3 câu (`1/2/3` copy), cụm từ trong `vocab` gạch chân kèm tooltip, danh sách "Words & phrases" bên dưới. `Tab` / `Shift+Tab` đổi mode khi đang ở ô nhập hoặc không focus gì (`Esc` để rời ô nhập), mode lưu localStorage, đổi mode giữ input nhưng xóa kết quả
 - [x] History hai mode: badge mode, lọc theo mode (`?mode=`), tìm cả trong `suggestions`, copy câu đầu tiên. `/?session=<id>` khôi phục đúng mode, tone và kết quả
 - [x] Route chọn sẵn id session (bản cache hoặc bản sẽ bị Regenerate ghi đè thì dùng lại id cũ) và trả qua header `x-assist-session`; stream xong có kết quả thì client ghi `?session=<id>` lên URL, reload hoặc gửi link là mở lại đúng câu trả lời
 - [x] Test (Vitest + Playwright) cho Suggest, cache key theo mode và History hai mode

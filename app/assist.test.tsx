@@ -306,6 +306,28 @@ describe('Assist', () => {
       )
     })
 
+    it('cycles modes with Tab while typing, keeping focus in the box', async () => {
+      const user = userEvent.setup()
+      render(<Assist />)
+      await user.type(screen.getByLabelText('Sentence to fix'), 'hello')
+
+      await user.keyboard('{Tab}')
+
+      expect(screen.getByRole('tab', { name: 'Suggest' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+      const box = screen.getByLabelText('What you want to say')
+      expect(box).toHaveFocus()
+      expect(box).toHaveValue('hello')
+
+      await user.keyboard('{Shift>}{Tab}{/Shift}')
+      expect(screen.getByRole('tab', { name: 'Fix' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    })
+
     it('keeps the typed input but clears the result when switching modes', async () => {
       nextResult.current = FIX_RESULT
       const user = userEvent.setup()
