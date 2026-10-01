@@ -367,7 +367,10 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         <ModeTabs value={mode} onChange={changeMode} />
       </div>
       <form
-        className="bg-card o-ly focus-within:border-ring/60 focus-within:ring-ring/20 relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] focus-within:ring-4"
+        className={cn(
+          'bg-card o-ly relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] focus-within:ring-4',
+          ink.focus,
+        )}
         onSubmit={(e) => {
           e.preventDefault()
           send()
