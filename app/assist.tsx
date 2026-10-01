@@ -373,13 +373,6 @@ export function Assist({ session }: { session?: AssistSession | null }) {
           send()
         }}
       >
-        <span
-          aria-hidden
-          className={cn(
-            'absolute inset-y-0 left-(--margin) w-px transition-colors',
-            ink.margin,
-          )}
-        />
         <Textarea
           ref={inputRef}
           value={input}
@@ -394,18 +387,10 @@ export function Assist({ session }: { session?: AssistSession | null }) {
           }}
           placeholder={copyText.placeholder}
           aria-label={copyText.inputLabel}
-          className={cn(
-            'relative max-h-60 min-h-28 resize-none rounded-none border-0 bg-transparent pt-3.5 pr-4 text-base leading-relaxed shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent',
-            TEXT_INSET,
-          )}
+          className="max-h-60 min-h-28 resize-none rounded-none border-0 bg-transparent px-4 pt-3.5 text-base leading-relaxed shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent"
           maxLength={MAX_INPUT}
         />
-        <div
-          className={cn(
-            'relative flex items-center justify-between gap-2 pr-2 pb-2',
-            'pl-[calc(var(--margin)+0.25rem)]',
-          )}
-        >
+        <div className="flex items-center justify-between gap-2 px-2 pb-2">
           <ToggleGroup
             size="sm"
             spacing={1}
@@ -460,12 +445,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </div>
       </form>
 
-      <div
-        className={cn(
-          'text-muted-foreground -mt-3 hidden flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:flex',
-          TEXT_INSET,
-        )}
-      >
+      <div className="text-muted-foreground -mt-3 hidden flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs sm:flex">
         <span className="flex items-center gap-1.5">
           <Kbd>Tab</Kbd> Mode
         </span>
