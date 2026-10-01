@@ -25,7 +25,7 @@ export function ModeTabs({
             aria-selected={selected}
             onClick={() => onChange(m)}
             className={cn(
-              'focus-visible:ring-ring/50 relative rounded-md px-2 pt-1 pb-2.5 text-lg font-semibold tracking-tight transition-colors outline-none focus-visible:ring-3',
+              'focus-visible:ring-ring/50 font-hand relative rounded-md px-2 pt-0.5 pb-2.5 text-[1.7rem] leading-none font-semibold transition-colors outline-none focus-visible:ring-3',
               selected
                 ? MODE_INK[m].text
                 : 'text-muted-foreground/80 hover:text-foreground',

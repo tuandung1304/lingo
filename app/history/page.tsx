@@ -71,7 +71,7 @@ export default async function HistoryPage({
                 }}
                 aria-current={current ? 'page' : undefined}
                 className={cn(
-                  'focus-visible:ring-ring/50 relative rounded-md px-2 pt-1 pb-2.5 text-base font-semibold transition-colors outline-none focus-visible:ring-3',
+                  'focus-visible:ring-ring/50 font-hand relative rounded-md px-2 pt-0.5 pb-2.5 text-[1.45rem] leading-none font-semibold transition-colors outline-none focus-visible:ring-3',
                   current
                     ? f.id
                       ? MODE_INK[f.id].text
