@@ -353,6 +353,28 @@ describe('Assist', () => {
       )
     })
 
+    it('copies only from the copy button, not by clicking the sentence', async () => {
+      nextResult.current = SUGGEST_RESULT
+      const writeText = vi.spyOn(navigator.clipboard, 'writeText')
+      const user = userEvent.setup()
+      render(<Assist />)
+      await user.click(screen.getByRole('tab', { name: 'Suggest' }))
+      await describeIdea(user, 'hôm qua server lag')
+      const sentence = await screen.findByText(
+        'Yesterday the server lag was brutal.',
+      )
+
+      await user.click(sentence)
+      expect(writeText).not.toHaveBeenCalled()
+
+      await user.click(
+        screen.getByRole('button', { name: 'Copy suggestion 2' }),
+      )
+      expect(writeText).toHaveBeenCalledWith(
+        'Yesterday the server lag was brutal.',
+      )
+    })
+
     it('opens a saved suggest session in Suggest mode', () => {
       localStorage.setItem('assist.mode', 'fix')
 

@@ -552,6 +552,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
                       <OptionLine
                         key={i}
                         index={i}
+                        label={`Copy alternative ${j + 1}`}
                         copied={copied === i}
                         onCopy={copy}
                       >
@@ -587,6 +588,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
                 <OptionLine
                   key={i}
                   index={i}
+                  label={`Copy ${mode === 'write' ? 'reply' : 'suggestion'} ${i + 1}`}
                   copied={copied === i}
                   onCopy={copy}
                 >
@@ -613,31 +615,35 @@ export function Assist({ session }: { session?: AssistSession | null }) {
   )
 }
 
-// One copyable line on the sheet: the number in the margin, the sentence, a copy icon
+// One line on the sheet: the number in the margin, the sentence, a copy button.
+// Only the button copies, so text can still be selected or hovered for meanings.
 function OptionLine({
   index,
+  label,
   copied,
   onCopy,
   children,
 }: {
   index: number
+  label: string
   copied: boolean
   onCopy: (index: number) => void
   children: React.ReactNode
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onCopy(index)}
-      className={cn(
-        'group hover:bg-muted/40 focus-visible:bg-muted/60 relative w-full text-left text-pretty transition-colors outline-none',
-        LINE,
-      )}
-    >
+    <div className={cn('group text-pretty', LINE)}>
       <CopyHint index={index} copied={copied} />
       {children}
-      <CopyIcon />
-    </button>
+      <button
+        type="button"
+        onClick={() => onCopy(index)}
+        aria-label={label}
+        title={`Copy (${index + 1})`}
+        className="hover:bg-muted focus-visible:ring-ring/50 -m-1 rounded-md p-1 outline-none focus-visible:ring-3"
+      >
+        <CopyIcon />
+      </button>
+    </div>
   )
 }
 

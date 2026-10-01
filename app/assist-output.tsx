@@ -109,7 +109,7 @@ export function CopyHint({
 
 export function CopyIcon() {
   return (
-    <Copy className="text-muted-foreground mt-1.5 size-4 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100" />
+    <Copy className="text-muted-foreground mt-1.5 size-4 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" />
   )
 }
 
