@@ -11,11 +11,11 @@ import { LoginForm } from './login-form'
 
 export default function LoginPage() {
   return (
-    <main className="from-muted/40 to-background relative flex flex-1 flex-col items-center justify-center gap-6 bg-linear-to-b p-4">
-      <Logo className="size-12 shadow-md" />
-      <Card className="w-full max-w-sm">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-6 p-4">
+      <Logo className="size-12 rounded-xl" />
+      <Card className="o-ly w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-base">Lingo</CardTitle>
+          <CardTitle className="text-lg font-semibold">Lingo</CardTitle>
           <CardDescription>Sign in to continue</CardDescription>
         </CardHeader>
         <CardContent>

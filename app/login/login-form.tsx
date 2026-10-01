@@ -20,6 +20,7 @@ export function LoginForm() {
           name="email"
           type="email"
           autoComplete="email"
+          className="bg-card dark:bg-card h-9"
           required
         />
       </div>
@@ -30,6 +31,7 @@ export function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          className="bg-card dark:bg-card h-9"
           required
         />
       </div>
@@ -38,7 +40,7 @@ export function LoginForm() {
           {state.error}
         </p>
       )}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="h-9 font-semibold">
         {pending ? 'Signing in…' : 'Sign in'}
       </Button>
     </form>
