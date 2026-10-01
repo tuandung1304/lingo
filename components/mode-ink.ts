@@ -1,23 +1,26 @@
 import type { Mode } from '@/lib/assist/schema'
 
-// One pen per mode, shared by tabs, badges and the margin rule so a colour always means the same mode
+// One pen per mode, shared by tabs, badges, buttons and the margin rule so a colour always means the same mode
 export const MODE_INK: Record<
   Mode,
-  { text: string; badge: string; rule: string }
+  { text: string; badge: string; margin: string; button: string }
 > = {
   fix: {
     text: 'text-ink-fix',
     badge: 'bg-ink-fix/10 text-ink-fix',
-    rule: 'border-l-ink-fix/70',
+    margin: 'bg-ink-fix/45',
+    button: 'bg-ink-fix text-background hover:bg-ink-fix/85',
   },
   suggest: {
     text: 'text-ink-suggest',
     badge: 'bg-ink-suggest/10 text-ink-suggest',
-    rule: 'border-l-ink-suggest/70',
+    margin: 'bg-ink-suggest/45',
+    button: 'bg-ink-suggest text-background hover:bg-ink-suggest/85',
   },
   write: {
     text: 'text-ink-write',
     badge: 'bg-ink-write/10 text-ink-write',
-    rule: 'border-l-ink-write/70',
+    margin: 'bg-ink-write/45',
+    button: 'bg-ink-write text-background hover:bg-ink-write/85',
   },
 }

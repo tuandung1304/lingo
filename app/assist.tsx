@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 
+import { MODE_INK } from '@/components/mode-ink'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Textarea } from '@/components/ui/textarea'
@@ -35,12 +36,16 @@ import {
 
 import {
   CopyHint,
+  CopyIcon,
   CorrectedSkeleton,
   EditList,
   Highlighted,
+  LINE,
   Phrased,
   SectionLabel,
+  Sheet,
   StreamCaret,
+  TEXT_INSET,
   VocabList,
 } from './assist-output'
 import { ModeTabs } from './mode-tabs'
@@ -354,18 +359,27 @@ export function Assist({ session }: { session?: AssistSession | null }) {
     </span>
   )
 
+  const ink = MODE_INK[mode]
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 [--margin:2.25rem] sm:[--margin:2.75rem]">
       <div className="-mb-2">
         <ModeTabs value={mode} onChange={changeMode} />
       </div>
       <form
-        className="bg-card focus-within:border-ring focus-within:ring-ring/30 rounded-xl border shadow-xs transition-[color,box-shadow] focus-within:ring-3"
+        className="bg-card o-ly focus-within:border-ring/60 focus-within:ring-ring/20 relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] focus-within:ring-4"
         onSubmit={(e) => {
           e.preventDefault()
           send()
         }}
       >
+        <span
+          aria-hidden
+          className={cn(
+            'absolute inset-y-0 left-(--margin) w-px transition-colors',
+            ink.margin,
+          )}
+        />
         <Textarea
           ref={inputRef}
           value={input}
@@ -380,10 +394,18 @@ export function Assist({ session }: { session?: AssistSession | null }) {
           }}
           placeholder={copyText.placeholder}
           aria-label={copyText.inputLabel}
-          className="max-h-60 min-h-24 resize-none border-0 bg-transparent px-4 pt-3 text-base shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent"
+          className={cn(
+            'relative max-h-60 min-h-28 resize-none rounded-none border-0 bg-transparent pt-3.5 pr-4 text-base leading-relaxed shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent',
+            TEXT_INSET,
+          )}
           maxLength={MAX_INPUT}
         />
-        <div className="flex items-center justify-between gap-2 px-2 pb-2">
+        <div
+          className={cn(
+            'relative flex items-center justify-between gap-2 pr-2 pb-2',
+            'pl-[calc(var(--margin)+0.25rem)]',
+          )}
+        >
           <ToggleGroup
             size="sm"
             spacing={1}
@@ -394,13 +416,12 @@ export function Assist({ session }: { session?: AssistSession | null }) {
               toneStore.set(v[0] as Tone)
             }}
             aria-label="Tone"
-            className="bg-muted rounded-lg p-0.5"
           >
             {TONES.map((t) => (
               <ToggleGroupItem
                 key={t}
                 value={t}
-                className="text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground h-6 px-2.5 capitalize aria-pressed:shadow-xs"
+                className="text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground hover:text-foreground h-7 rounded-full px-2.5 capitalize hover:bg-transparent aria-pressed:font-semibold"
               >
                 {t}
               </ToggleGroupItem>
@@ -413,14 +434,23 @@ export function Assist({ session }: { session?: AssistSession | null }) {
               </span>
             )}
             {isLoading ? (
-              <Button type="button" variant="outline" onClick={() => stop()}>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 px-3"
+                onClick={() => stop()}
+              >
                 <Square className="fill-current" /> Stop
                 <Kbd className="hidden sm:inline-flex">Esc</Kbd>
               </Button>
             ) : (
-              <Button type="submit" disabled={!input.trim()}>
-                <ArrowUp /> {MODE_LABELS[mode]}
-                <Kbd className="bg-primary-foreground/15 text-primary-foreground hidden sm:inline-flex">
+              <Button
+                type="submit"
+                disabled={!input.trim()}
+                className={cn('h-9 px-3 font-semibold', ink.button)}
+              >
+                <ArrowUp strokeWidth={2.5} /> {MODE_LABELS[mode]}
+                <Kbd className="hidden bg-current/0 text-current opacity-75 sm:inline-flex">
                   {mod}
                   {enter}
                 </Kbd>
@@ -430,14 +460,12 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </div>
       </form>
 
-      <div className="text-muted-foreground -mt-3 hidden flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs sm:flex">
-        <span className="flex items-center gap-1.5">
-          <Kbd>
-            {mod}
-            {enter}
-          </Kbd>{' '}
-          {MODE_LABELS[mode]}
-        </span>
+      <div
+        className={cn(
+          'text-muted-foreground -mt-3 hidden flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:flex',
+          TEXT_INSET,
+        )}
+      >
         <span className="flex items-center gap-1.5">
           <Kbd>Tab</Kbd> Mode
         </span>
@@ -465,7 +493,7 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </p>
       )}
 
-      {isLoading && options.length === 0 && <CorrectedSkeleton />}
+      {isLoading && options.length === 0 && <CorrectedSkeleton mode={mode} />}
 
       {mode === 'fix' && corrected && (
         <section className="flex flex-col gap-5" aria-live="polite">
@@ -473,75 +501,93 @@ export function Assist({ session }: { session?: AssistSession | null }) {
             <SectionLabel>
               Corrected
               {unchanged && (
-                <span className="flex items-center gap-1 tracking-normal text-emerald-600 normal-case dark:text-emerald-400">
-                  <Check className="size-3.5" /> Looks good
+                <span className="text-tick flex items-center gap-1">
+                  <Check className="size-3.5" strokeWidth={2.5} /> Looks good
                 </span>
               )}
               {rewritten && (
-                <span className="flex items-center gap-1 tracking-normal normal-case">
+                <span className="flex items-center gap-1">
                   <Languages className="size-3.5" /> Rewritten in English
                 </span>
               )}
               {meta}
             </SectionLabel>
-            <div
-              className={cn(
-                'group bg-card ring-foreground/5 flex items-start gap-3 rounded-xl border p-4 shadow-sm ring-1 transition-colors',
-                copied === 0 && 'border-emerald-500/40',
-              )}
-            >
-              <p className="flex-1 text-lg leading-relaxed text-pretty">
-                {segments ? (
-                  // Marks above the line scramble reading order, so screen readers get the plain sentence
-                  <>
-                    <span className="sr-only">{corrected}</span>
-                    <span aria-hidden>
-                      <Highlighted segments={segments} edits={edits} animated />
-                    </span>
-                  </>
-                ) : (
-                  corrected
-                )}
-                {isLoading && <StreamCaret />}
-              </p>
-              <button
-                type="button"
-                onClick={() => copy(0)}
-                aria-label="Copy corrected sentence"
-                className="hover:bg-muted -m-1 rounded-md p-1"
-              >
-                <CopyHint index={0} copied={copied === 0} />
-              </button>
-            </div>
-          </div>
+            <Sheet mode={mode}>
+              <div className={cn('group', LINE, segments && 'pt-5')}>
+                <CopyHint
+                  index={0}
+                  copied={copied === 0}
+                  className={cn(segments && 'mt-5')}
+                />
+                <p
+                  className={cn(
+                    'text-lg text-pretty sm:text-xl',
+                    segments ? 'leading-[2.3]' : 'leading-relaxed',
+                  )}
+                >
+                  {segments ? (
+                    // Marks above the line scramble reading order, so screen readers get the plain sentence
+                    <>
+                      <span className="sr-only">{corrected}</span>
+                      <span aria-hidden>
+                        <Highlighted
+                          segments={segments}
+                          edits={edits}
+                          animated
+                        />
+                      </span>
+                    </>
+                  ) : (
+                    corrected
+                  )}
+                  {isLoading && <StreamCaret />}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => copy(0)}
+                  aria-label="Copy corrected sentence"
+                  title="Copy (1)"
+                  className={cn(
+                    'hover:bg-muted focus-visible:ring-ring/50 -m-1 rounded-md p-1 outline-none focus-visible:ring-3',
+                    segments && 'mt-4',
+                  )}
+                >
+                  <CopyIcon />
+                </button>
+              </div>
 
-          {alternatives.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <SectionLabel>More natural</SectionLabel>
-              {alternatives.map((text, j) => {
-                const i = j + 1
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => copy(i)}
+              {alternatives.length > 0 && (
+                <div className="border-t">
+                  <p
                     className={cn(
-                      'group bg-card hover:bg-muted/50 flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors',
-                      copied === i && 'border-emerald-500/40',
+                      'text-muted-foreground pt-3 -mb-1 text-sm',
+                      TEXT_INSET,
                     )}
                   >
-                    <span className="flex-1 leading-relaxed text-pretty">
-                      {text}
-                    </span>
-                    <CopyHint index={i} copied={copied === i} />
-                  </button>
-                )
-              })}
-            </div>
-          )}
+                    More natural
+                  </p>
+                  {alternatives.map((text, j) => {
+                    const i = j + 1
+                    return (
+                      <OptionLine
+                        key={i}
+                        index={i}
+                        copied={copied === i}
+                        onCopy={copy}
+                      >
+                        <span className="leading-relaxed sm:text-lg">
+                          {text}
+                        </span>
+                      </OptionLine>
+                    )
+                  })}
+                </div>
+              )}
+            </Sheet>
+          </div>
 
           {done && edits.length > 0 && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <SectionLabel>Why</SectionLabel>
               <EditList edits={edits} />
             </div>
@@ -556,27 +602,27 @@ export function Assist({ session }: { session?: AssistSession | null }) {
               {mode === 'write' ? 'Here it is' : 'Say it like this'}
               {meta}
             </SectionLabel>
-            {suggestions.map((text, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => copy(i)}
-                className={cn(
-                  'group bg-card hover:bg-muted/50 flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors',
-                  copied === i && 'border-emerald-500/40',
-                )}
-              >
-                <span className="flex-1 text-lg leading-relaxed text-pretty">
-                  {done ? <Phrased text={text} vocab={vocab} /> : text}
-                  {isLoading && i === suggestions.length - 1 && <StreamCaret />}
-                </span>
-                <CopyHint index={i} copied={copied === i} />
-              </button>
-            ))}
+            <Sheet mode={mode} className="divide-y">
+              {suggestions.map((text, i) => (
+                <OptionLine
+                  key={i}
+                  index={i}
+                  copied={copied === i}
+                  onCopy={copy}
+                >
+                  <span className="leading-relaxed sm:text-lg">
+                    {done ? <Phrased text={text} vocab={vocab} /> : text}
+                    {isLoading && i === suggestions.length - 1 && (
+                      <StreamCaret />
+                    )}
+                  </span>
+                </OptionLine>
+              ))}
+            </Sheet>
           </div>
 
           {done && vocab.length > 0 && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <SectionLabel>Words &amp; phrases</SectionLabel>
               <VocabList vocab={vocab} />
             </div>
@@ -584,6 +630,34 @@ export function Assist({ session }: { session?: AssistSession | null }) {
         </section>
       )}
     </div>
+  )
+}
+
+// One copyable line on the sheet: the number in the margin, the sentence, a copy icon
+function OptionLine({
+  index,
+  copied,
+  onCopy,
+  children,
+}: {
+  index: number
+  copied: boolean
+  onCopy: (index: number) => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onCopy(index)}
+      className={cn(
+        'group hover:bg-muted/40 focus-visible:bg-muted/60 relative w-full text-left text-pretty transition-colors outline-none',
+        LINE,
+      )}
+    >
+      <CopyHint index={index} copied={copied} />
+      {children}
+      <CopyIcon />
+    </button>
   )
 }
 

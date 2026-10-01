@@ -3,7 +3,7 @@
 import { cn } from 'cn'
 import { Check, Copy } from 'lucide-react'
 
-import { Kbd } from '@/components/ui/kbd'
+import { MODE_INK } from '@/components/mode-ink'
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { Segment } from '@/lib/assist/highlight'
 import { markPhrases } from '@/lib/assist/phrases'
-import type { EditType, FixEdit, VocabNote } from '@/lib/assist/schema'
+import type { EditType, FixEdit, Mode, VocabNote } from '@/lib/assist/schema'
 
 export const EDIT_LABELS: Record<EditType, string> = {
   spelling: 'Spelling',
@@ -20,9 +20,18 @@ export const EDIT_LABELS: Record<EditType, string> = {
   naturalness: 'Naturalness',
 }
 
+// Results sit on a notebook page: a margin column of width --margin, then the text.
+// Assist sets --margin so sheets, labels and notes all line up on the same rule.
+export const TEXT_INSET = 'pl-[calc(var(--margin)+0.75rem)]'
+
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+    <h2
+      className={cn(
+        'text-muted-foreground flex items-center gap-2 pr-1 text-sm font-medium',
+        TEXT_INSET,
+      )}
+    >
       {children}
     </h2>
   )
@@ -37,32 +46,83 @@ export function StreamCaret() {
   )
 }
 
-// Number key hint that turns into a check once copied
+// A page with a margin rule in the mode's pen colour
+export function Sheet({
+  mode,
+  className,
+  children,
+}: {
+  mode: Mode
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        'bg-card relative overflow-hidden rounded-xl border',
+        className,
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-y-0 left-(--margin) w-px transition-colors',
+          MODE_INK[mode].margin,
+        )}
+      />
+      {children}
+    </div>
+  )
+}
+
+export const LINE =
+  'grid grid-cols-[var(--margin)_1fr_auto] items-start gap-x-3 py-3 pr-3'
+
+// The option's number in the margin, which is also its copy key; a tick once copied
 export function CopyHint({
   index,
   copied,
+  className,
 }: {
   index: number
   copied: boolean
+  className?: string
 }) {
   return (
-    <span className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
-      {copied ? (
-        <Check className="text-tick size-3.5" />
-      ) : (
-        <Copy className="size-3.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100" />
+    <span
+      className={cn(
+        'text-muted-foreground group-hover:text-foreground flex h-7 items-center justify-center transition-colors',
+        className,
       )}
-      <Kbd className="hidden sm:inline-flex">{index + 1}</Kbd>
+    >
+      {copied ? (
+        <Check className="text-tick size-4" strokeWidth={2.5} />
+      ) : (
+        <span className="font-hand text-[1.4rem] leading-none font-semibold">
+          {index + 1}
+        </span>
+      )}
     </span>
   )
 }
 
-export function CorrectedSkeleton() {
+export function CopyIcon() {
   return (
-    <div className="flex flex-col gap-3 py-2" aria-hidden>
-      <div className="bg-muted h-5 w-4/5 animate-pulse rounded" />
-      <div className="bg-muted h-5 w-3/5 animate-pulse rounded" />
-    </div>
+    <Copy className="text-muted-foreground mt-1.5 size-4 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100" />
+  )
+}
+
+export function CorrectedSkeleton({ mode }: { mode: Mode }) {
+  return (
+    <Sheet mode={mode}>
+      <div className={LINE} aria-hidden>
+        <span />
+        <div className="flex flex-col gap-3 py-1">
+          <div className="bg-muted h-5 w-4/5 animate-pulse rounded" />
+          <div className="bg-muted h-5 w-3/5 animate-pulse rounded" />
+        </div>
+      </div>
+    </Sheet>
   )
 }
 
@@ -71,10 +131,13 @@ export function EditList({ edits }: { edits: FixEdit[] }) {
   return (
     <ol className="flex flex-col gap-3">
       {edits.map((e, i) => (
-        <li key={i} className="grid grid-cols-[1.25rem_1fr] gap-x-2 text-sm">
+        <li
+          key={i}
+          className="grid grid-cols-[var(--margin)_1fr] gap-x-3 text-sm"
+        >
           <span
             aria-hidden
-            className="font-hand text-ink-fix text-xl leading-5 font-semibold"
+            className="font-hand text-ink-fix text-center text-xl leading-5 font-semibold"
           >
             {i + 1}
           </span>
@@ -229,7 +292,12 @@ export function Phrased({ text, vocab }: { text: string; vocab: VocabNote[] }) {
 // A word list as you'd copy it into the back of the notebook: phrase, then meaning
 export function VocabList({ vocab }: { vocab: VocabNote[] }) {
   return (
-    <dl className="grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-[minmax(7rem,max-content)_1fr]">
+    <dl
+      className={cn(
+        'grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-[minmax(7rem,max-content)_1fr]',
+        TEXT_INSET,
+      )}
+    >
       {vocab.map((v, i) => (
         <div key={i} className="contents">
           <dt className="text-ink-suggest font-semibold">{v.phrase}</dt>

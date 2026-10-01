@@ -77,7 +77,7 @@
   --ink-suggest: #5b3fd0;
   --ink-write: #1f5fd6;
   --tick: #1e8a5a;
-  --grid: rgb(91 63 208 / 9%);
+  --grid: rgb(91 63 208 / 6.5%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -118,7 +118,7 @@
   --ink-suggest: #b9a8ff;
   --ink-write: #8db6ff;
   --tick: #7fd6a8;
-  --grid: rgb(230 236 228 / 6%);
+  --grid: rgb(230 236 228 / 4.5%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -208,4 +208,13 @@
     opacity: 0;
     transform: translateY(3px);
   }
+}
+
+/* The squared paper of a Vietnamese school notebook, kept faint enough to write over */
+@utility o-ly {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 1.25rem 1.25rem;
+  background-position: -1px -1px;
 }
